@@ -273,7 +273,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
     }
 
     float relTime = (ori - startOri) / (endOri - startOri);
-    // save scanId and time in intensity, TODO(qmf): add XYZIR type
+    // save scanId and time in intensity, TODO(qmf): add XYZIRX type
     point.intensity = scanID + scanPeriod * relTime;
 
     if (imuPointerLast >= 0) {
@@ -354,40 +354,14 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
 
   int scanCount = -1;
   for (int i = 5; i < cloudSize - 5; i++) {
-    float diffX = laserCloud->points[i - 5].x
-                + laserCloud->points[i - 4].x
-                + laserCloud->points[i - 3].x
-                + laserCloud->points[i - 2].x
-                + laserCloud->points[i - 1].x
-                - 10 * laserCloud->points[i].x
-                + laserCloud->points[i + 1].x
-                + laserCloud->points[i + 2].x
-                + laserCloud->points[i + 3].x
-                + laserCloud->points[i + 4].x
-                + laserCloud->points[i + 5].x;
-    float diffY = laserCloud->points[i - 5].y
-                + laserCloud->points[i - 4].y
-                + laserCloud->points[i - 3].y
-                + laserCloud->points[i - 2].y
-                + laserCloud->points[i - 1].y
-                - 10 * laserCloud->points[i].y
-                + laserCloud->points[i + 1].y
-                + laserCloud->points[i + 2].y
-                + laserCloud->points[i + 3].y
-                + laserCloud->points[i + 4].y
-                + laserCloud->points[i + 5].y;
-    float diffZ = laserCloud->points[i - 5].z
-                + laserCloud->points[i - 4].z
-                + laserCloud->points[i - 3].z
-                + laserCloud->points[i - 2].z
-                + laserCloud->points[i - 1].z
-                - 10 * laserCloud->points[i].z
-                + laserCloud->points[i + 1].z
-                + laserCloud->points[i + 2].z
-                + laserCloud->points[i + 3].z
-                + laserCloud->points[i + 4].z
-                + laserCloud->points[i + 5].z;
-
+    float diffX = - 11 * laserCloud->points[i].x;
+    float diffY = - 11 * laserCloud->points[i].y;
+    float diffZ = - 11 * laserCloud->points[i].z;
+    for (int neighor = -5; neighor <= 5; neighor++) {
+        diffX += laserCloud->points[i + neighor].x;
+        diffY += laserCloud->points[i + neighor].y;
+        diffZ += laserCloud->points[i + neighor].z;
+    }
     cloudCurvature[i] = pow(diffX, 2) + pow(diffY, 2) + pow(diffZ, 2);
     cloudSortInd[i] = i;
     cloudNeighborPicked[i] = 0;
