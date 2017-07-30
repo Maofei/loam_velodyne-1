@@ -27,7 +27,7 @@ const float scanPeriod = 0.1;
 const int systemDelay = 20;
 int systemInitCount = 0;
 bool systemInited = false;
-
+// this it the laser scan beam num
 const int N_SCANS = 16;
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn(new pcl::PointCloud<pcl::PointXYZ>());
