@@ -31,6 +31,8 @@ int systemInitCount = 0;
 bool systemInited = false;
 // this it the laser scan beam num
 const int N_SCANS = 16;
+int scanStartInd[N_SCANS];
+int scanEndInd[N_SCANS];
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn(new pcl::PointCloud<pcl::PointXYZ>());
 pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloud(new pcl::PointCloud<pcl::PointXYZI>());
@@ -43,13 +45,13 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr surfPointsLessFlatScanDS(new pcl::PointClou
 pcl::PointCloud<pcl::PointXYZ>::Ptr imuTrans(new pcl::PointCloud<pcl::PointXYZ>(4, 1));
 pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudScans[N_SCANS];
 
-float cloudCurvature[40000];
-int cloudSortInd[40000];
-int cloudNeighborPicked[40000];
-int cloudLabel[40000];
 
-int scanStartInd[N_SCANS];
-int scanEndInd[N_SCANS];
+// this should be the point num
+const int POINT_NUM = 40000;
+float cloudCurvature[POINT_NUM];
+int cloudSortInd[POINT_NUM];
+int cloudNeighborPicked[POINT_NUM];
+int cloudLabel[POINT_NUM];
 
 int imuPointerFront = 0;
 int imuPointerLast = -1;
