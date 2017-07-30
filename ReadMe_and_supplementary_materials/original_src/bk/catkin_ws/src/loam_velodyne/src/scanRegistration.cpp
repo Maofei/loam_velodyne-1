@@ -229,7 +229,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudIn2)
     point.y = laserCloudIn->points[i].z;
     point.z = laserCloudIn->points[i].x;
 
-    float angle = atan(point.y / sqrt(point.x * point.x + point.z * point.z)) * 180 / PI;
+    double angle = rad2deg(atan(point.y / sqrt(pow(point.x, 2) + pow(point.z, 2))));
     // ? differ from different lidar
 /*
     int roundedAngle = int(angle + (angle<0.0?-0.5:+0.5));
@@ -271,7 +271,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudIn2)
     }
 
     float relTime = (ori - startOri) / (endOri - startOri);
-    // ? why this intensity
+    // save scanId and time in intensity
     point.intensity = scanID + scanPeriod * relTime;
 
     if (imuPointerLast >= 0) {
