@@ -22,8 +22,6 @@
 
 #include <loam_velodyne/common.h>
 
-const double PI = 3.1415926;
-
 const float scanPeriod = 0.1;
 
 const int skipFrameNum = 1;
