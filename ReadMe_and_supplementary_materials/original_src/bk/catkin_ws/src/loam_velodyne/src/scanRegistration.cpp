@@ -22,8 +22,6 @@
 
 #include <loam_velodyne/common.h>
 
-const double PI = 3.1415926;
-
 const float scanPeriod = 0.1;
 
 const int systemDelay = 20;
@@ -218,12 +216,12 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
 
   float startOri = -atan2(laserCloudIn->points[0].y, laserCloudIn->points[0].x);
   float endOri = -atan2(laserCloudIn->points[cloudSize - 1].y,
-                        laserCloudIn->points[cloudSize - 1].x) + 2 * PI;
+                        laserCloudIn->points[cloudSize - 1].x) + 2 * M_PI;
 
-  if (endOri - startOri > 3 * PI) {
-    endOri -= 2 * PI;
-  } else if (endOri - startOri < PI) {
-    endOri += 2 * PI;
+  if (endOri - startOri > 3 * M_PI) {
+    endOri -= 2 * M_PI;
+  } else if (endOri - startOri < M_PI) {
+    endOri += 2 * M_PI;
   }
 
   bool halfPassed = false;
@@ -234,7 +232,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
     point.y = laserCloudIn->points[i].z;
     point.z = laserCloudIn->points[i].x;
 
-    double angle = rad2deg(atan(point.y / sqrt(pow(point.x, 2) + pow(point.z, 2))));
+    double angle = rad2deg(atan(point.y / length2d(point.x, point.z)));
     // ? differ from different lidar
 /*
     int roundedAngle = int(angle + (angle<0.0?-0.5:+0.5));
@@ -256,22 +254,22 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
 
     float ori = -atan2(point.x, point.z);
     if (!halfPassed) {
-      if (ori < startOri - PI / 2) {
-        ori += 2 * PI;
-      } else if (ori > startOri + PI * 3 / 2) {
-        ori -= 2 * PI;
+      if (ori < startOri - M_PI / 2) {
+        ori += 2 * M_PI;
+      } else if (ori > startOri + M_PI * 3 / 2) {
+        ori -= 2 * M_PI;
       }
 
-      if (ori - startOri > PI) {
+      if (ori - startOri > M_PI) {
         halfPassed = true;
       }
     } else {
-      ori += 2 * PI;
+      ori += 2 * M_PI;
 
-      if (ori < endOri - PI * 3 / 2) {
-        ori += 2 * PI;
-      } else if (ori > endOri + PI / 2) {
-        ori -= 2 * PI;
+      if (ori < endOri - M_PI * 3 / 2) {
+        ori += 2 * M_PI;
+      } else if (ori > endOri + M_PI / 2) {
+        ori -= 2 * M_PI;
       }
     }
 
@@ -309,10 +307,10 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
 
         imuRollCur = imuRoll[imuPointerFront] * ratioFront + imuRoll[imuPointerBack] * ratioBack;
         imuPitchCur = imuPitch[imuPointerFront] * ratioFront + imuPitch[imuPointerBack] * ratioBack;
-        if (imuYaw[imuPointerFront] - imuYaw[imuPointerBack] > PI) {
-          imuYawCur = imuYaw[imuPointerFront] * ratioFront + (imuYaw[imuPointerBack] + 2 * PI) * ratioBack;
-        } else if (imuYaw[imuPointerFront] - imuYaw[imuPointerBack] < -PI) {
-          imuYawCur = imuYaw[imuPointerFront] * ratioFront + (imuYaw[imuPointerBack] - 2 * PI) * ratioBack;
+        if (imuYaw[imuPointerFront] - imuYaw[imuPointerBack] > M_PI) {
+          imuYawCur = imuYaw[imuPointerFront] * ratioFront + (imuYaw[imuPointerBack] + 2 * M_PI) * ratioBack;
+        } else if (imuYaw[imuPointerFront] - imuYaw[imuPointerBack] < -M_PI) {
+          imuYawCur = imuYaw[imuPointerFront] * ratioFront + (imuYaw[imuPointerBack] - 2 * M_PI) * ratioBack;
         } else {
           imuYawCur = imuYaw[imuPointerFront] * ratioFront + imuYaw[imuPointerBack] * ratioBack;
         }
@@ -373,14 +371,14 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
     if (int(laserCloud->points[i].intensity) != scanCount) {
       scanCount = int(laserCloud->points[i].intensity);
 
-      if (scanCount > 0) {
+      if (scanCount > 0 && scanCount < N_SCANS) {
         scanStartInd[scanCount] = i + 5;
         scanEndInd[scanCount - 1] = i - 5;
       }
     }
   }
   scanStartInd[0] = 5;
-  scanEndInd[15] = cloudSize - 5;
+  scanEndInd[N_SCANS - 1] = cloudSize - 5;
 
   for (int i = 5; i < cloudSize - 6; i++) {
     float diffX = laserCloud->points[i + 1].x - laserCloud->points[i].x;

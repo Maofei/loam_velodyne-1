@@ -22,3 +22,14 @@ inline float length3d(float x,
 {
 	return sqrt(pow(x, 2) + pow(y, 2) + pow(z, 2));
 }
+
+inline double length2d(double x,
+	                   double y)
+{
+	return sqrt(pow(x, 2) + pow(y, 2));
+}
+inline float length2d(float x,
+	                  float y)
+{
+	return sqrt(pow(x, 2) + pow(y, 2));
+}
