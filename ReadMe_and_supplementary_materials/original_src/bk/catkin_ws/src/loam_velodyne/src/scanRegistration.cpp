@@ -2,7 +2,6 @@
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <ros/ros.h>
 
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/Imu.h>
@@ -21,11 +20,6 @@
 #include <pcl/kdtree/kdtree_flann.h>
 
 #include <loam_velodyne/common.h>
-
-const float scanPeriod = 0.1; // time duration per scan
-const int N_SCANS = 16; // laser scan beam num
-const int POINT_NUM = 40000; // 160000 for HDL64E
-const int imuQueLength = 200; // 2000 for HDL64E
 
 const int systemDelay = 20;
 int systemInitCount = 0;
@@ -49,10 +43,10 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr surfPointsLessFlatScan(new pcl::PointCloud<
 pcl::PointCloud<pcl::PointXYZI>::Ptr surfPointsLessFlatScanDS(new pcl::PointCloud<pcl::PointXYZI>());
 pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudScans[N_SCANS];
 
-float cloudCurvature[POINT_NUM];
-int cloudSortInd[POINT_NUM];
-int cloudNeighborPicked[POINT_NUM];
-int cloudLabel[POINT_NUM];
+float cloudCurvature[MAX_POINTS];
+int cloudSortInd[MAX_POINTS];
+int cloudNeighborPicked[MAX_POINTS];
+int cloudLabel[MAX_POINTS];
 
 int imuPointerFront = 0;
 int imuPointerLast = -1;
@@ -216,7 +210,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
     }
     return;
   }
-  
+
   // time point of current scan
   double timeScanCur = laserCloudInMsg->header.stamp.toSec();
 
@@ -267,7 +261,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
     point.x = laserCloudIn->points[i].y;
     point.y = laserCloudIn->points[i].z;
     point.z = laserCloudIn->points[i].x;
-    
+
     // angle of origin z from origin x-y plane
     double angle = rad2deg(atan(point.y / length2d(point.x, point.z)));
     // different from lidar!
@@ -289,7 +283,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
     const float angleSpan = angleUpperBoundDeg - angleLowerBoundDeg;
     const float angleStep = angleSpan / (N_SCANS - 1);
     float angleID = (angle - angleLowerBoundDeg) / angleStep;
-    
+
     scanID = int(angleID + 0.5f);
 #endif
 */
@@ -353,34 +347,34 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
         float ratioBack = (imuTime[imuPointerFront] - timeScanCur - pointTime)
                         / (imuTime[imuPointerFront] - imuTime[imuPointerBack]);
 
-        imuRollCur = imuRoll[imuPointerFront] * ratioFront + 
+        imuRollCur = imuRoll[imuPointerFront] * ratioFront +
                      imuRoll[imuPointerBack] * ratioBack;
-        imuPitchCur = imuPitch[imuPointerFront] * ratioFront + 
+        imuPitchCur = imuPitch[imuPointerFront] * ratioFront +
                       imuPitch[imuPointerBack] * ratioBack;
 
         if (imuYaw[imuPointerFront] - imuYaw[imuPointerBack] > M_PI) {
-          imuYawCur = imuYaw[imuPointerFront] * ratioFront + 
+          imuYawCur = imuYaw[imuPointerFront] * ratioFront +
                       (imuYaw[imuPointerBack] + 2 * M_PI) * ratioBack;
         } else if (imuYaw[imuPointerFront] - imuYaw[imuPointerBack] < -M_PI) {
-          imuYawCur = imuYaw[imuPointerFront] * ratioFront + 
+          imuYawCur = imuYaw[imuPointerFront] * ratioFront +
                       (imuYaw[imuPointerBack] - 2 * M_PI) * ratioBack;
         } else {
-          imuYawCur = imuYaw[imuPointerFront] * ratioFront + 
+          imuYawCur = imuYaw[imuPointerFront] * ratioFront +
                       imuYaw[imuPointerBack] * ratioBack;
         }
 
-        imuVeloXCur = imuVeloX[imuPointerFront] * ratioFront + 
+        imuVeloXCur = imuVeloX[imuPointerFront] * ratioFront +
                       imuVeloX[imuPointerBack] * ratioBack;
-        imuVeloYCur = imuVeloY[imuPointerFront] * ratioFront + 
+        imuVeloYCur = imuVeloY[imuPointerFront] * ratioFront +
                       imuVeloY[imuPointerBack] * ratioBack;
-        imuVeloZCur = imuVeloZ[imuPointerFront] * ratioFront + 
+        imuVeloZCur = imuVeloZ[imuPointerFront] * ratioFront +
                       imuVeloZ[imuPointerBack] * ratioBack;
 
-        imuShiftXCur = imuShiftX[imuPointerFront] * ratioFront + 
+        imuShiftXCur = imuShiftX[imuPointerFront] * ratioFront +
                        imuShiftX[imuPointerBack] * ratioBack;
-        imuShiftYCur = imuShiftY[imuPointerFront] * ratioFront + 
+        imuShiftYCur = imuShiftY[imuPointerFront] * ratioFront +
                        imuShiftY[imuPointerBack] * ratioBack;
-        imuShiftZCur = imuShiftZ[imuPointerFront] * ratioFront + 
+        imuShiftZCur = imuShiftZ[imuPointerFront] * ratioFront +
                        imuShiftZ[imuPointerBack] * ratioBack;
       }
 

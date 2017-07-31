@@ -20,9 +20,7 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/kdtree/kdtree_flann.h>
 
-const double PI = 3.1415926;
-
-const float scanPeriod = 0.1;
+#include <loam_velodyne/common.h>
 
 const int stackFrameNum = 1;
 const int mapFrameNum = 5;
@@ -80,7 +78,6 @@ float transformAftMapped[6] = {0};
 
 int imuPointerFront = 0;
 int imuPointerLast = -1;
-const int imuQueLength = 200;
 
 double imuTime[imuQueLength] = {0};
 float imuRoll[imuQueLength] = {0};
@@ -969,9 +966,9 @@ int main(int argc, char** argv)
             transformTobeMapped[4] += matX.at<float>(4, 0);
             transformTobeMapped[5] += matX.at<float>(5, 0);
 
-            float deltaR = sqrt(matX.at<float>(0, 0) * 180 / PI * matX.at<float>(0, 0) * 180 / PI
-                         + matX.at<float>(1, 0) * 180 / PI * matX.at<float>(1, 0) * 180 / PI
-                         + matX.at<float>(2, 0) * 180 / PI * matX.at<float>(2, 0) * 180 / PI);
+            float deltaR = sqrt(matX.at<float>(0, 0) * 180 / M_PI * matX.at<float>(0, 0) * 180 / M_PI
+                         + matX.at<float>(1, 0) * 180 / M_PI * matX.at<float>(1, 0) * 180 / M_PI
+                         + matX.at<float>(2, 0) * 180 / M_PI * matX.at<float>(2, 0) * 180 / M_PI);
             float deltaT = sqrt(matX.at<float>(3, 0) * 100 * matX.at<float>(3, 0) * 100
                          + matX.at<float>(4, 0) * 100 * matX.at<float>(4, 0) * 100
                          + matX.at<float>(5, 0) * 100 * matX.at<float>(5, 0) * 100);
