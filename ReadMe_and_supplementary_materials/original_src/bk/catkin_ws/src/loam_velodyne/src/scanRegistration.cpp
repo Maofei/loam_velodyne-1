@@ -29,6 +29,7 @@ const float scanPeriod = 0.1;
 const int systemDelay = 20;
 int systemInitCount = 0;
 bool systemInited = false;
+
 // this it the laser scan beam num
 const int N_SCANS = 16;
 int scanStartInd[N_SCANS];
@@ -46,7 +47,7 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr imuTrans(new pcl::PointCloud<pcl::PointXYZ>(
 pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudScans[N_SCANS];
 
 
-// this should be the point num
+// this should be the point num??
 const int POINT_NUM = 40000;
 float cloudCurvature[POINT_NUM];
 int cloudSortInd[POINT_NUM];
