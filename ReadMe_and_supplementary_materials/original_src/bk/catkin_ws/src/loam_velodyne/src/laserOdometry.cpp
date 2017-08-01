@@ -471,7 +471,7 @@ int main(int argc, char** argv)
         int cornerPointsSharpNum = cornerPointsSharp->points.size();
         int surfPointsFlatNum = surfPointsFlat->points.size();
 
-        for (int iterCount = 0; iterCount < maxIterNum; iterCount++) {
+        for (int iterCount = 0; iterCount < maxIterNumOdom; iterCount++) {
           /*
              1. deal with cornerPointsSharp, saved to laserCloudOri and coeffSel
              2. deal with surfPointsFlat, saved to laserCloudOri and coeffSel

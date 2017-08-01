@@ -26,7 +26,9 @@ const float scanPeriod = 0.1; // time duration per scan
 const int N_SCANS = 16;       // laser scan beam num
 const int MAX_POINTS = 40000; // 160000 for HDL64E
 const int imuQueLength = 200; // 2000 for HDL64E
-const int maxIterNum = 25;    // 100 for HDL64E
+
+const int maxIterNumOdom = 25;    // 100 for HDL64E
+const int maxIterNumMapping = 10; // 20 for HDL64E
 
 inline double rad2deg(double radians) {
   return radians * 180.0 / M_PI;
