@@ -1,6 +1,26 @@
+#include <math.h>
+#include <time.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <cmath>
 #include <chrono>
 #include <ros/ros.h>
+
+#include <opencv/cv.h>
+#include <opencv2/highgui/highgui.hpp>
+
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/kdtree/kdtree_flann.h>
+
+#include <tf/transform_datatypes.h>
+#include <tf/transform_broadcaster.h>
+
+#include <nav_msgs/Odometry.h>
+#include <sensor_msgs/Imu.h>
+#include <sensor_msgs/PointCloud2.h>
 
 const float scanPeriod = 0.1; // time duration per scan
 const int N_SCANS = 16;       // laser scan beam num

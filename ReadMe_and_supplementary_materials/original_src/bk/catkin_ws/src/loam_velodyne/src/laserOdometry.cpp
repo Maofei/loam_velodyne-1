@@ -1,24 +1,3 @@
-#include <math.h>
-#include <time.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-#include <nav_msgs/Odometry.h>
-#include <sensor_msgs/Imu.h>
-#include <sensor_msgs/PointCloud2.h>
-
-#include <tf/transform_datatypes.h>
-#include <tf/transform_broadcaster.h>
-
-#include <opencv/cv.h>
-#include <opencv2/highgui/highgui.hpp>
-
-#include <pcl_conversions/pcl_conversions.h>
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
-#include <pcl/filters/voxel_grid.h>
-#include <pcl/kdtree/kdtree_flann.h>
-
 #include <loam_velodyne/common.h>
 
 const int skipFrameNum = 1;
@@ -414,6 +393,7 @@ int main(int argc, char** argv)
   ros::Rate rate(100);
 
   while (ros::ok()) {
+    // not all the callbacks can be excuted
     ros::spinOnce();
 
     if (newCornerPointsSharp && newCornerPointsLessSharp && newSurfPointsFlat &&
@@ -493,9 +473,9 @@ int main(int argc, char** argv)
 
         for (int iterCount = 0; iterCount < maxIterNum; iterCount++) {
           /*
-             1. deal with cornerPointsSharp
-             2. deal with surfPointsFlat
-             3. cv::solve(matAtA, matAtB, matX, cv::DECOMP_QR);
+             1. deal with cornerPointsSharp, saved to laserCloudOri and coeffSel
+             2. deal with surfPointsFlat, saved to laserCloudOri and coeffSel
+             3. build problem and cv::solve
           */
           for (int i = 0; i < cornerPointsSharpNum; i++) {
             // transform current point to the frame of start time point
@@ -843,6 +823,7 @@ int main(int argc, char** argv)
           cv::transpose(matA, matAt);
           matAtA = matAt * matA;
           matAtB = matAt * matB;
+          // TODO(qmf): check solve speed
           cv::solve(matAtA, matAtB, matX, cv::DECOMP_QR);
 
           if (iterCount == 0) { // initialize
