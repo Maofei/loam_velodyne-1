@@ -1,7 +1,9 @@
 #include <loam_velodyne/common.h>
 
 const int stackFrameNum = 1;
-const int mapFrameNum = 5;
+
+// this controls pubLaserCloudSurround publish frequency
+const int mapFrameNum = 5; 
 
 double timeLaserCloudCornerLast = 0;
 double timeLaserCloudSurfLast = 0;
@@ -388,11 +390,12 @@ int main(int argc, char** argv)
   for (int i = 0; i < laserCloudNum; i++) {
     laserCloudCornerArray[i].reset(new pcl::PointCloud<pcl::PointXYZI>());
     laserCloudSurfArray[i].reset(new pcl::PointCloud<pcl::PointXYZI>());
-
+    // downsampled
     laserCloudCornerArray2[i].reset(new pcl::PointCloud<pcl::PointXYZI>());
     laserCloudSurfArray2[i].reset(new pcl::PointCloud<pcl::PointXYZI>());
   }
 
+  // this can be changed to control frequency
   int frameCount = stackFrameNum - 1;
   int mapFrameCount = mapFrameNum - 1;
 
@@ -451,12 +454,9 @@ int main(int argc, char** argv)
         int centerCubeJ = int((transformTobeMapped[4] + 25.0) / 50.0) + laserCloudCenHeight;
         int centerCubeK = int((transformTobeMapped[5] + 25.0) / 50.0) + laserCloudCenDepth;
 
-        if (transformTobeMapped[3] + 25.0 < 0) 
-          centerCubeI--;
-        if (transformTobeMapped[4] + 25.0 < 0) 
-          centerCubeJ--;
-        if (transformTobeMapped[5] + 25.0 < 0) 
-          centerCubeK--;
+        if (transformTobeMapped[3] + 25.0 < 0) centerCubeI--;
+        if (transformTobeMapped[4] + 25.0 < 0) centerCubeJ--;
+        if (transformTobeMapped[5] + 25.0 < 0) centerCubeK--;
 
         // shift block of point cloud
         // ??? shifting the feature points in the cubic subspace to include at least a margin of 3m? 
@@ -636,7 +636,7 @@ int main(int argc, char** argv)
           laserCloudCenDepth--;
         }
 
-        // ??? trying to find which index of cubic space is laser FOV and its surrounding ???
+        // ??? trying to find which index of cubic space is in laser FOV and its surrounding ???
         int laserCloudValidNum = 0;
         int laserCloudSurroundNum = 0;
         for (int i = centerCubeI - 2; i <= centerCubeI + 2; i++) {
@@ -703,17 +703,20 @@ int main(int argc, char** argv)
         int laserCloudSurfFromMapNum = laserCloudSurfFromMap->points.size();
 
         // feature points from the new scan
+        // laserCloudCornerStack2 <= laserCloudCornerLast after pointAssociateToMap
         int laserCloudCornerStackNum2 = laserCloudCornerStack2->points.size();
         for (int i = 0; i < laserCloudCornerStackNum2; i++) {
           pointAssociateTobeMapped(&laserCloudCornerStack2->points[i], &laserCloudCornerStack2->points[i]);
         }
 
+        // laserCloudSurfStack2 <= laserCloudSurfLast after pointAssociateToMap
         int laserCloudSurfStackNum2 = laserCloudSurfStack2->points.size();
         for (int i = 0; i < laserCloudSurfStackNum2; i++) {
           pointAssociateTobeMapped(&laserCloudSurfStack2->points[i], &laserCloudSurfStack2->points[i]);
         }
 
         // downsampling feature points from the new scan using voxel grid
+        // save downsampled points in laserCloudCornerStack and laserCloudSurfStack
         laserCloudCornerStack->clear();
         downSizeFilterCorner.setInputCloud(laserCloudCornerStack2);
         downSizeFilterCorner.filter(*laserCloudCornerStack);
@@ -727,7 +730,7 @@ int main(int argc, char** argv)
         laserCloudCornerStack2->clear();
         laserCloudSurfStack2->clear();
 
-        // if there are enough feature points
+        // if there are enough feature points which are in laser FOV
         if (laserCloudCornerFromMapNum > 10 && laserCloudSurfFromMapNum > 100) {
           // kdtree of feature points from map
           kdtreeCornerFromMap->setInputCloud(laserCloudCornerFromMap);
@@ -741,10 +744,12 @@ int main(int argc, char** argv)
             //laserCloudProj->clear();
             coeffSel->clear();
 
-            // find correspondance for corner cloud
+            // find correspondance for corner cloud after downsampled
             for (int i = 0; i < laserCloudCornerStackNum; i++) {
               pointOri = laserCloudCornerStack->points[i];
+              // project them to map coordinate
               pointAssociateToMap(&pointOri, &pointSel);
+              // search nearest 5 points from map
               kdtreeCornerFromMap->nearestKSearch(pointSel, 5, pointSearchInd, pointSearchSqDis);
 
               if (pointSearchSqDis[4] < 1.0) {
@@ -756,6 +761,7 @@ int main(int argc, char** argv)
                   cy += laserCloudCornerFromMap->points[pointSearchInd[j]].y;
                   cz += laserCloudCornerFromMap->points[pointSearchInd[j]].z;
                 }
+                // center of 5 nearest points
                 cx /= 5; cy /= 5; cz /= 5;
 
                 float a11 = 0; float a12 = 0; float a13 = 0;
@@ -775,7 +781,7 @@ int main(int argc, char** argv)
                 }
                 a11 /= 5; a12 /= 5; a13 /= 5;
                 a22 /= 5; a23 /= 5; a33 /= 5;
-
+                // symetric matrix
                 matA1.at<float>(0, 0) = a11;
                 matA1.at<float>(0, 1) = a12;
                 matA1.at<float>(0, 2) = a13;
@@ -786,6 +792,9 @@ int main(int argc, char** argv)
                 matA1.at<float>(2, 1) = a23;
                 matA1.at<float>(2, 2) = a33;
 
+                // matD1 is the eigenvalues of matA1
+                // matV1 is the eigenvectors of matA1
+                // ???
                 cv::eigen(matA1, matD1, matV1);
 
                 if (matD1.at<float>(0, 0) > 3 * matD1.at<float>(0, 1)) {
@@ -847,7 +856,7 @@ int main(int argc, char** argv)
               }
             }
 
-            // find correspondance for surface cloud
+            // find correspondance for surface cloud after downsampled
             for (int i = 0; i < laserCloudSurfStackNum; i++) {
               pointOri = laserCloudSurfStack->points[i];
               pointAssociateToMap(&pointOri, &pointSel);
@@ -859,6 +868,7 @@ int main(int argc, char** argv)
                   matA0.at<float>(j, 1) = laserCloudSurfFromMap->points[pointSearchInd[j]].y;
                   matA0.at<float>(j, 2) = laserCloudSurfFromMap->points[pointSearchInd[j]].z;
                 }
+                // matB0 is all -1, solve matX0
                 cv::solve(matA0, matB0, matX0, cv::DECOMP_QR);
 
                 float pa = matX0.at<float>(0, 0);
@@ -875,8 +885,9 @@ int main(int argc, char** argv)
                 bool planeValid = true;
                 for (int j = 0; j < 5; j++) {
                   if (fabs(pa * laserCloudSurfFromMap->points[pointSearchInd[j]].x +
-                      pb * laserCloudSurfFromMap->points[pointSearchInd[j]].y +
-                      pc * laserCloudSurfFromMap->points[pointSearchInd[j]].z + pd) > 0.2) {
+                           pb * laserCloudSurfFromMap->points[pointSearchInd[j]].y +
+                           pc * laserCloudSurfFromMap->points[pointSearchInd[j]].z + 
+                           pd) > 0.2) {
                     planeValid = false;
                     break;
                   }
@@ -928,9 +939,11 @@ int main(int argc, char** argv)
             cv::Mat matA(laserCloudSelNum, 6, CV_32F, cv::Scalar::all(0));
             cv::Mat matAt(6, laserCloudSelNum, CV_32F, cv::Scalar::all(0));
             cv::Mat matAtA(6, 6, CV_32F, cv::Scalar::all(0));
-            cv::Mat matB(laserCloudSelNum, 1, CV_32F, cv::Scalar::all(0));
             cv::Mat matAtB(6, 1, CV_32F, cv::Scalar::all(0));
+
+            cv::Mat matB(laserCloudSelNum, 1, CV_32F, cv::Scalar::all(0));
             cv::Mat matX(6, 1, CV_32F, cv::Scalar::all(0));
+
             for (int i = 0; i < laserCloudSelNum; i++) {
               pointOri = laserCloudOri->points[i];
               coeff = coeffSel->points[i];
@@ -992,6 +1005,8 @@ int main(int argc, char** argv)
               //ROS_INFO ("laser mapping degenerate");
             }
 
+            // updating transform, this should be our final goal, 
+            // transform matrix from new scan to map coordinate
             transformTobeMapped[0] += matX.at<float>(0, 0);
             transformTobeMapped[1] += matX.at<float>(1, 0);
             transformTobeMapped[2] += matX.at<float>(2, 0);
@@ -999,23 +1014,25 @@ int main(int argc, char** argv)
             transformTobeMapped[4] += matX.at<float>(4, 0);
             transformTobeMapped[5] += matX.at<float>(5, 0);
 
-            float deltaR = sqrt(pow(rad2deg(matX.at<float>(0, 0)), 2) + 
-                                pow(rad2deg(matX.at<float>(1, 0)), 2) +
-                                pow(rad2deg(matX.at<float>(2, 0)), 2));
-            float deltaT = sqrt(pow(matX.at<float>(3, 0) * 100, 2) +
-                                pow(matX.at<float>(4, 0) * 100, 2) +
-                                pow(matX.at<float>(5, 0) * 100, 2));
+            float deltaR = length3d(rad2deg(matX.at<float>(0, 0)),
+                                    rad2deg(matX.at<float>(1, 0)),
+                                    rad2deg(matX.at<float>(2, 0)));
+            float deltaT = length3d(matX.at<float>(3, 0) * 100, 
+                                    matX.at<float>(4, 0) * 100,
+                                    matX.at<float>(5, 0) * 100);
 
+            // if update is small enough, determine convergence
             if (deltaR < 0.05 && deltaT < 0.05) {
               break;
             }
 
             //ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", iterCount, deltaR, deltaT);
-          }
+          }// max 25 times L-M optimization ends here.
 
           transformUpdate();
         }
 
+        // project new feature points (corners) to map and store them in their corresponding cubic space
         for (int i = 0; i < laserCloudCornerStackNum; i++) {
           pointAssociateToMap(&laserCloudCornerStack->points[i], &pointSel);
 
@@ -1037,6 +1054,7 @@ int main(int argc, char** argv)
           }
         }
 
+        // project new feature points (surfs) to map and store them in their corresponding cubic space
         for (int i = 0; i < laserCloudSurfStackNum; i++) {
           pointAssociateToMap(&laserCloudSurfStack->points[i], &pointSel);
 
@@ -1057,7 +1075,9 @@ int main(int argc, char** argv)
             laserCloudSurfArray[cubeInd]->push_back(pointSel);
           }
         }
-
+        // downsampling feature points in FOV 
+        // swap laserCloudCornerArray and laserCloudCornerArray2
+        // swap laserCloudSurfArray and laserCloudSurfArray2
         for (int i = 0; i < laserCloudValidNum; i++) {
           int ind = laserCloudValidInd[i];
 
@@ -1085,6 +1105,7 @@ int main(int argc, char** argv)
           laserCloudSurround2->clear();
           /*
           if OUTPUT_ALL_POINTCLOUD:
+          // ??? laserCloudCornerArray is downsampled
           for (int i = 0; i < laserCloudNum; i++) {
              *laserCloudSurround2 += *laserCloudCornerArray[i];
              *laserCloudSurround2 += *laserCloudSurfArray[i];
@@ -1095,7 +1116,7 @@ int main(int argc, char** argv)
             *laserCloudSurround2 += *laserCloudCornerArray[ind];
             *laserCloudSurround2 += *laserCloudSurfArray[ind];
           }
-
+          // can be changed for dense grid map
           laserCloudSurround->clear();
           downSizeFilterCorner.setInputCloud(laserCloudSurround2);
           downSizeFilterCorner.filter(*laserCloudSurround);
@@ -1107,29 +1128,36 @@ int main(int argc, char** argv)
           pubLaserCloudSurround.publish(laserCloudSurroundMsg);
         }
 
+        // transforming full resolution laser pointcloud to map and publishing them
         int laserCloudFullResNum = laserCloudFullRes->points.size();
         for (int i = 0; i < laserCloudFullResNum; i++) {
           pointAssociateToMap(&laserCloudFullRes->points[i], &laserCloudFullRes->points[i]);
         }
-
         sensor_msgs::PointCloud2 laserCloudFullResMsg;
         pcl::toROSMsg(*laserCloudFullRes, laserCloudFullResMsg);
         laserCloudFullResMsg.header.stamp = ros::Time().fromSec(timeLaserOdometry);
         laserCloudFullResMsg.header.frame_id = "/camera_init";
         pubLaserCloudFullRes.publish(laserCloudFullResMsg);
 
+        // publishing final odometry message and corresponding tf
         geometry_msgs::Quaternion geoQuat = tf::createQuaternionMsgFromRollPitchYaw(transformAftMapped[2], 
                                                                                     -transformAftMapped[0], 
                                                                                     -transformAftMapped[1]);
-
         odomAftMapped.header.stamp = ros::Time().fromSec(timeLaserOdometry);
+        // The pose in this message should be specified in the coordinate frame given by header.frame_id.
         odomAftMapped.pose.pose.orientation.x = -geoQuat.y;
         odomAftMapped.pose.pose.orientation.y = -geoQuat.z;
         odomAftMapped.pose.pose.orientation.z = geoQuat.x;
         odomAftMapped.pose.pose.orientation.w = geoQuat.w;
+        // transformAftMapped is global, so it is pose
+        // both transformBefMapped, transformAftMapped is final estimated transform, 
+        // one is relative while the other is global
         odomAftMapped.pose.pose.position.x = transformAftMapped[3];
         odomAftMapped.pose.pose.position.y = transformAftMapped[4];
         odomAftMapped.pose.pose.position.z = transformAftMapped[5];
+
+        // The twist(velocity) in this message should be specified in the coordinate frame given by the child_frame_id
+        // transformBefMapped is relative from k to k+1, therefore it's velocity
         odomAftMapped.twist.twist.angular.x = transformBefMapped[0];
         odomAftMapped.twist.twist.angular.y = transformBefMapped[1];
         odomAftMapped.twist.twist.angular.z = transformBefMapped[2];
