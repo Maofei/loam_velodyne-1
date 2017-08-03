@@ -60,12 +60,14 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudSurfArray2[laserCloudNum];
 pcl::KdTreeFLANN<pcl::PointXYZI>::Ptr kdtreeCornerFromMap(new pcl::KdTreeFLANN<pcl::PointXYZI>());
 pcl::KdTreeFLANN<pcl::PointXYZI>::Ptr kdtreeSurfFromMap(new pcl::KdTreeFLANN<pcl::PointXYZI>());
 
-float transformSum[6] = {0};// coarse transform for laser odom 
-                            // (relative from new scan (k+1) to its pose at k)
 float transformIncre[6] = {0};
-float transformTobeMapped[6] = {0};// coarse transform for laser odom (global)
+
+float transformSum[6] = {0};// coarse transform for laser odom from laserOdometry(/laser_odom_to_init)
+                            // (relative from new scan (k+1) to its pose at k)
 float transformBefMapped[6] = {0};// final relative transform (at k+1) from new scan to its pose at k,
                                   // initialized by coarse transform for laser odom (transformSum)
+
+float transformTobeMapped[6] = {0};// coarse transform for laser odom (global)
 float transformAftMapped[6] = {0};// final global transform from new scan to map, 
                                   // initialized by coarse transform for laser odom (transformTobeMapped)
 
@@ -167,8 +169,9 @@ void transformAssociateToMap()
                          - (-sin(transformTobeMapped[1]) * x2 + cos(transformTobeMapped[1]) * z2);
 }
 
-// if there is not IMU data, this function simply initializing "transformBefMapped" with coarse relative
-// odom "transformSum" and "transformAftMapped" with coarse global odom "transformTobeMapped"
+// if there is not IMU data, this function simply initializing 
+// "transformBefMapped" with coarse relative odom "transformSum" and
+// "transformAftMapped" with coarse global odom "transformTobeMapped"
 void transformUpdate()
 {
   if (imuPointerLast >= 0) {
@@ -377,13 +380,13 @@ int main(int argc, char** argv)
   bool isDegenerate = false;
   cv::Mat matP(6, 6, CV_32F, cv::Scalar::all(0));
 
+  // these maybe not for dense gridmap generation
   pcl::VoxelGrid<pcl::PointXYZI> downSizeFilterCorner;
   downSizeFilterCorner.setLeafSize(0.2, 0.2, 0.2);
 
   pcl::VoxelGrid<pcl::PointXYZI> downSizeFilterSurf;
   downSizeFilterSurf.setLeafSize(0.4, 0.4, 0.4);
 
-  // these maybe not for dense gridmap generation
   pcl::VoxelGrid<pcl::PointXYZI> downSizeFilterMap;
   downSizeFilterMap.setLeafSize(0.6, 0.6, 0.6);
 
@@ -802,9 +805,11 @@ int main(int argc, char** argv)
                   float x0 = pointSel.x;
                   float y0 = pointSel.y;
                   float z0 = pointSel.z;
+
                   float x1 = cx + 0.1 * matV1.at<float>(0, 0);
                   float y1 = cy + 0.1 * matV1.at<float>(0, 1);
                   float z1 = cz + 0.1 * matV1.at<float>(0, 2);
+
                   float x2 = cx - 0.1 * matV1.at<float>(0, 0);
                   float y2 = cy - 0.1 * matV1.at<float>(0, 1);
                   float z2 = cz - 0.1 * matV1.at<float>(0, 2);
@@ -816,16 +821,16 @@ int main(int argc, char** argv)
                              + ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))
                              * ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1)));
 
-                  float l12 = sqrt((x1 - x2)*(x1 - x2) + (y1 - y2)*(y1 - y2) + (z1 - z2)*(z1 - z2));
+                  float l12 = length3d(x1 - x2, y1 - y2, z1 - z2);
 
-                  float la = ((y1 - y2)*((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
-                           + (z1 - z2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))) / a012 / l12;
+                  float la = ((y1 - y2)*((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1)) + 
+                             (z1 - z2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))) / a012 / l12;
 
-                  float lb = -((x1 - x2)*((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
-                           - (z1 - z2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
+                  float lb = -((x1 - x2)*((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1)) - 
+                             (z1 - z2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
 
-                  float lc = -((x1 - x2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
-                           + (y1 - y2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
+                  float lc = -((x1 - x2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1)) + 
+                             (y1 - y2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
 
                   float ld2 = a012 / l12;
 
@@ -901,8 +906,9 @@ int main(int argc, char** argv)
                   pointProj.y -= pb * pd2;
                   pointProj.z -= pc * pd2;
 
-                  float s = 1 - 0.9 * fabs(pd2) / sqrt(sqrt(pointSel.x * pointSel.x +
-                            pointSel.y * pointSel.y + pointSel.z * pointSel.z));
+                  float s = 1 - 0.9 * fabs(pd2) / sqrt(length3d(pointSel.x,
+                                                                pointSel.y, 
+                                                                pointSel.z));
 
                   coeff.x = s * pa;
                   coeff.y = s * pb;
