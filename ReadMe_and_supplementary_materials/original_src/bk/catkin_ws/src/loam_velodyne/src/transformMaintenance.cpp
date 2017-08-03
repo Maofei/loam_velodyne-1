@@ -8,6 +8,7 @@ float transformAftMapped[6] = {0};
 
 ros::Publisher *pubLaserOdometry2Pointer = NULL;
 tf::TransformBroadcaster *tfBroadcaster2Pointer = NULL;
+
 nav_msgs::Odometry laserOdometry2;
 tf::StampedTransform laserOdometryTrans2;
 
@@ -100,9 +101,13 @@ void transformAssociateToMap()
 
 void laserOdometryHandler(const nav_msgs::Odometry::ConstPtr& laserOdometry)
 {
+  // obtaining global coarse odometry from '/laser_odom_to_init' after laser odometry node.
   double roll, pitch, yaw;
   geometry_msgs::Quaternion geoQuat = laserOdometry->pose.pose.orientation;
-  tf::Matrix3x3(tf::Quaternion(geoQuat.z, -geoQuat.x, -geoQuat.y, geoQuat.w)).getRPY(roll, pitch, yaw);
+  tf::Matrix3x3(tf::Quaternion(geoQuat.z, 
+                               -geoQuat.x, 
+                               -geoQuat.y, 
+                               geoQuat.w)).getRPY(roll, pitch, yaw);
 
   transformSum[0] = -pitch;
   transformSum[1] = -yaw;
@@ -114,30 +119,43 @@ void laserOdometryHandler(const nav_msgs::Odometry::ConstPtr& laserOdometry)
 
   transformAssociateToMap();
 
-  geoQuat = tf::createQuaternionMsgFromRollPitchYaw
-            (transformMapped[2], -transformMapped[0], -transformMapped[1]);
+  geoQuat = tf::createQuaternionMsgFromRollPitchYaw(transformMapped[2], 
+                                                    -transformMapped[0], 
+                                                    -transformMapped[1]);
 
   laserOdometry2.header.stamp = laserOdometry->header.stamp;
+
   laserOdometry2.pose.pose.orientation.x = -geoQuat.y;
   laserOdometry2.pose.pose.orientation.y = -geoQuat.z;
   laserOdometry2.pose.pose.orientation.z = geoQuat.x;
   laserOdometry2.pose.pose.orientation.w = geoQuat.w;
+
   laserOdometry2.pose.pose.position.x = transformMapped[3];
   laserOdometry2.pose.pose.position.y = transformMapped[4];
   laserOdometry2.pose.pose.position.z = transformMapped[5];
   pubLaserOdometry2Pointer->publish(laserOdometry2);
 
   laserOdometryTrans2.stamp_ = laserOdometry->header.stamp;
-  laserOdometryTrans2.setRotation(tf::Quaternion(-geoQuat.y, -geoQuat.z, geoQuat.x, geoQuat.w));
-  laserOdometryTrans2.setOrigin(tf::Vector3(transformMapped[3], transformMapped[4], transformMapped[5]));
+  laserOdometryTrans2.setRotation(tf::Quaternion(-geoQuat.y, 
+                                                 -geoQuat.z, 
+                                                 geoQuat.x, 
+                                                 geoQuat.w));
+  laserOdometryTrans2.setOrigin(tf::Vector3(transformMapped[3], 
+                                            transformMapped[4], 
+                                            transformMapped[5]));
   tfBroadcaster2Pointer->sendTransform(laserOdometryTrans2);
 }
 
+// this callback function extract relative transform 'transformBefMapped' and 
+// global transform 'transformAftMapped' from global refined odometry '/aft_mapped_to_init'
 void odomAftMappedHandler(const nav_msgs::Odometry::ConstPtr& odomAftMapped)
 {
   double roll, pitch, yaw;
   geometry_msgs::Quaternion geoQuat = odomAftMapped->pose.pose.orientation;
-  tf::Matrix3x3(tf::Quaternion(geoQuat.z, -geoQuat.x, -geoQuat.y, geoQuat.w)).getRPY(roll, pitch, yaw);
+  tf::Matrix3x3(tf::Quaternion(geoQuat.z, 
+                               -geoQuat.x, 
+                               -geoQuat.y, 
+                               geoQuat.w)).getRPY(roll, pitch, yaw);
 
   transformAftMapped[0] = -pitch;
   transformAftMapped[1] = -yaw;
