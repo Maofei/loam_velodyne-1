@@ -453,13 +453,6 @@ int main(int argc, char** argv)
         continue;
       }
 
-      laserCloudOri->clear();
-      //pointSearchCornerLast->clear();
-      //pointProjCornerLast->clear();
-      //pointSearchSurfLast->clear();
-      //pointProjSurfLast->clear();
-      coeffSel->clear();
-
       // minus the predicted motion
       transform[3] -= imuVeloFromStartX * scanPeriod;
       transform[4] -= imuVeloFromStartY * scanPeriod;
@@ -472,6 +465,12 @@ int main(int argc, char** argv)
         int surfPointsFlatNum = surfPointsFlat->points.size();
 
         for (int iterCount = 0; iterCount < maxIterNumOdom; iterCount++) {
+          laserCloudOri->clear();
+          //pointSearchCornerLast->clear();
+          //pointProjCornerLast->clear();
+          //pointSearchSurfLast->clear();
+          //pointProjSurfLast->clear();
+          coeffSel->clear();
           /*
              1. deal with cornerPointsSharp, saved to laserCloudOri and coeffSel
              2. deal with surfPointsFlat, saved to laserCloudOri and coeffSel
@@ -505,12 +504,8 @@ int main(int argc, char** argv)
                     break;
                   }
                   // squared distance between the other point and pointSel
-                  pointSqDis = (laserCloudCornerLast->points[j].x - pointSel.x) *
-                               (laserCloudCornerLast->points[j].x - pointSel.x) +
-                               (laserCloudCornerLast->points[j].y - pointSel.y) *
-                               (laserCloudCornerLast->points[j].y - pointSel.y) +
-                               (laserCloudCornerLast->points[j].z - pointSel.z) *
-                               (laserCloudCornerLast->points[j].z - pointSel.z);
+                  pointSqDis = sqrDis(laserCloudCornerLast->points[j], pointSel);
+
                   // the other point must not be in the same scan
                   if (int(laserCloudCornerLast->points[j].intensity) > closestPointScan) {
                     if (pointSqDis < minPointSqDis2) {
@@ -525,12 +520,7 @@ int main(int argc, char** argv)
                     break;
                   }
 
-                  pointSqDis = (laserCloudCornerLast->points[j].x - pointSel.x) *
-                               (laserCloudCornerLast->points[j].x - pointSel.x) +
-                               (laserCloudCornerLast->points[j].y - pointSel.y) *
-                               (laserCloudCornerLast->points[j].y - pointSel.y) +
-                               (laserCloudCornerLast->points[j].z - pointSel.z) *
-                               (laserCloudCornerLast->points[j].z - pointSel.z);
+                  pointSqDis = sqrDis(laserCloudCornerLast->points[j], pointSel.x);
 
                   if (int(laserCloudCornerLast->points[j].intensity) < closestPointScan) {
                     if (pointSqDis < minPointSqDis2) {
@@ -595,7 +585,7 @@ int main(int argc, char** argv)
               pointProj.y -= lb * ld2;
               pointProj.z -= lc * ld2;
               */
-              float s = 1; // TODO: step? weight?
+              float s = 1.0; // TODO: step? weight?
               if (iterCount >= 5) {
                 s = 1 - 1.8 * fabs(ld2);  // TODO: why adjust s like this?
               }
@@ -617,6 +607,7 @@ int main(int argc, char** argv)
             }
           }
 
+          //=================================================================
           // ROS_INFO("corner points finished, dealing with surface points");
 
           for (int i = 0; i < surfPointsFlatNum; i++) {
@@ -644,12 +635,8 @@ int main(int argc, char** argv)
                     break;
                   }
 
-                  pointSqDis = (laserCloudSurfLast->points[j].x - pointSel.x) *
-                               (laserCloudSurfLast->points[j].x - pointSel.x) +
-                               (laserCloudSurfLast->points[j].y - pointSel.y) *
-                               (laserCloudSurfLast->points[j].y - pointSel.y) +
-                               (laserCloudSurfLast->points[j].z - pointSel.z) *
-                               (laserCloudSurfLast->points[j].z - pointSel.z);
+                  pointSqDis = sqrDis(laserCloudSurfLast->points[j], pointSel);
+
                   // within same scan
                   if (int(laserCloudSurfLast->points[j].intensity) <= closestPointScan) {
                      if (pointSqDis < minPointSqDis2) {
@@ -670,12 +657,7 @@ int main(int argc, char** argv)
                     break;
                   }
 
-                  pointSqDis = (laserCloudSurfLast->points[j].x - pointSel.x) *
-                               (laserCloudSurfLast->points[j].x - pointSel.x) +
-                               (laserCloudSurfLast->points[j].y - pointSel.y) *
-                               (laserCloudSurfLast->points[j].y - pointSel.y) +
-                               (laserCloudSurfLast->points[j].z - pointSel.z) *
-                               (laserCloudSurfLast->points[j].z - pointSel.z);
+                  pointSqDis = sqrDis(laserCloudSurfLast->points[j], pointSel);
 
                   if (int(laserCloudSurfLast->points[j].intensity) >= closestPointScan) {
                     if (pointSqDis < minPointSqDis2) {
@@ -709,7 +691,23 @@ int main(int argc, char** argv)
                          (tripod3.x - tripod1.x) * (tripod2.y - tripod1.y);
               float pd = -(pa * tripod1.x + pb * tripod1.y + pc * tripod1.z);
 
-              float ps = sqrt(pa * pa + pb * pb + pc * pc);
+              float ps = length3d(pa, pb, pc);
+
+              if (0 && ps == 0) {
+                std::cout<<"FATAL ERROR, surfPointsFlat id: "<<i<<std::endl;
+                std::cout<<"pa: "<<pa<<std::endl;
+                std::cout<<"pb: "<<pb<<std::endl;
+                std::cout<<"pc: "<<pc<<std::endl;
+                std::cout<<"pd: "<<pd<<std::endl;
+                std::cout<<"tripod1: "<<tripod1<<std::endl;
+                std::cout<<"tripod2: "<<tripod2<<std::endl;
+                std::cout<<"tripod3: "<<tripod3<<std::endl;
+                std::cout<<"pointSearchSurfInd1[i]: "<<pointSearchSurfInd1[i]<<std::endl;
+                std::cout<<"pointSearchSurfInd2[i]: "<<pointSearchSurfInd2[i]<<std::endl;
+                std::cout<<"pointSearchSurfInd3[i]: "<<pointSearchSurfInd3[i]<<std::endl;
+              }
+
+              // normal vector of the plane
               pa /= ps;
               pb /= ps;
               pc /= ps;
@@ -725,7 +723,7 @@ int main(int argc, char** argv)
               pointProj.z -= pc * pd2;
               */
               // TODO: why adjust s like this?
-              float s = 1;
+              float s = 1.0;
               if (iterCount >= 5) {
                 s = 1 - 1.8 * fabs(pd2) / sqrt(length3d(pointSel.x, pointSel.y, pointSel.z));
               }
@@ -767,7 +765,7 @@ int main(int argc, char** argv)
             // x/y/z are coordinates of feature points in the starting frame
             coeff = coeffSel->points[i];
 
-            float s = 1;
+            float s = 1.0;
 
             float srx = sin(s * transform[0]);
             float crx = cos(s * transform[0]);
@@ -818,6 +816,7 @@ int main(int argc, char** argv)
             matA.at<float>(i, 3) = atx;
             matA.at<float>(i, 4) = aty;
             matA.at<float>(i, 5) = atz;
+
             matB.at<float>(i, 0) = -0.05 * d2;
           }
           cv::transpose(matA, matAt);
@@ -865,8 +864,18 @@ int main(int argc, char** argv)
             || std::isnan(matX.at<float>(4, 0))
             || std::isnan(matX.at<float>(5, 0)))
           {
-            ROS_INFO("[USER WARN]laser Odometry: NaN found in var \"matX\", this L-M optimization step is going to be ignored");
+            //ROS_INFO("[USER WARN]laser Odometry: NaN found in var \"matX\", this L-M optimization step is going to be ignored");
+            ROS_INFO("iter: %d, %f, %f, %f, %f, %f, %f",
+                     iterCount,
+                     matX.at<float>(0, 0),
+                     matX.at<float>(1, 0),
+                     matX.at<float>(2, 0),
+                     matX.at<float>(3, 0),
+                     matX.at<float>(4, 0),
+                     matX.at<float>(5, 0));
           } else{
+            //ROS_INFO("[USER WARN]laser Odometry: not NaN found in var \"matX\".");
+            ROS_INFO("iter: %d, Updating", iterCount);
             transform[0] += matX.at<float>(0, 0);
             transform[1] += matX.at<float>(1, 0);
             transform[2] += matX.at<float>(2, 0);
@@ -888,7 +897,7 @@ int main(int argc, char** argv)
             break;
           }
 
-          //ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", iterCount, deltaR, deltaT);
+          // ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", iterCount, deltaR, deltaT);
         }
       }
 
@@ -960,6 +969,7 @@ int main(int argc, char** argv)
         }
       }
 
+      // update laserCloudCornerLast and laserCloudSurfLast with new data
       pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudTemp = cornerPointsLessSharp;
       cornerPointsLessSharp = laserCloudCornerLast;
       laserCloudCornerLast = laserCloudTemp;

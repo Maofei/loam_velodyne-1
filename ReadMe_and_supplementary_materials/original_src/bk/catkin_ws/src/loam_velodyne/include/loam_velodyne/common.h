@@ -1,6 +1,7 @@
 #include <math.h>
 #include <time.h>
 #include <stdio.h>
+#include <iostream>
 #include <stdlib.h>
 #include <cmath>
 #include <chrono>
@@ -50,6 +51,11 @@ inline double length2d(double x, double y) {
 }
 inline float length2d(float x, float y) {
 	return sqrt(pow(x, 2) + pow(y, 2));
+}
+inline float sqrDis(pcl::PointXYZI p1, pcl::PointXYZI p2) {
+	return pow(p1.x - p2.x, 2) + 
+	       pow(p1.y - p2.y, 2) + 
+	       pow(p1.z - p2.z, 2);
 }
 
 struct FreqReport {

@@ -43,6 +43,7 @@ float imuShiftFromStartXCur = 0, imuShiftFromStartYCur = 0, imuShiftFromStartZCu
 float imuVeloFromStartXCur = 0, imuVeloFromStartYCur = 0, imuVeloFromStartZCur = 0;
 
 double imuTime[imuQueLength] = {0};
+
 float imuRoll[imuQueLength] = {0};
 float imuPitch[imuQueLength] = {0};
 float imuYaw[imuQueLength] = {0};
@@ -68,7 +69,7 @@ ros::Publisher* pubSurfPointsFlatPointer;
 ros::Publisher* pubSurfPointsLessFlatPointer;
 ros::Publisher* pubImuTransPointer;
 
-
+// ??
 // imu shift from start vector (imuShiftFromStart*Cur) converted into start imu
 // coordinates?
 void ShiftToStartIMU(float pointTime)
@@ -111,7 +112,8 @@ void VeloToStartIMU()
   imuVeloFromStartZCur = z2;
 }
 
-// points converted into start imu coordinates?
+// points converted into start imu coordinates
+// roll => pitch => yaw => yawStart => pitchStart => rollStart
 void TransformToStartIMU(pcl::PointXYZI *p)
 {
   float x1 = cos(imuRollCur) * p->x - sin(imuRollCur) * p->y;
@@ -223,7 +225,10 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
   // ori of last point in clound on origin x-y plane
   float endOri = -atan2(laserCloudIn->points[cloudSize - 1].y,
                         laserCloudIn->points[cloudSize - 1].x) + 2 * M_PI;
+  ROS_INFO("start ori x: %f, y: %f, z: %f", laserCloudIn->points[0].x, laserCloudIn->points[0].y, laserCloudIn->points[0].z);
+  ROS_INFO("end   ori x: %f, y: %f, z: %f", laserCloudIn->points[cloudSize - 1].x, laserCloudIn->points[cloudSize - 1].y, laserCloudIn->points[cloudSize - 1].z);
 
+  // PI < endOri - startOri < 3*PI
   if (endOri - startOri > 3 * M_PI) {
     endOri -= 2 * M_PI;
   } else if (endOri - startOri < M_PI) {
@@ -233,6 +238,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
   int count = cloudSize;
   bool halfPassed = false;
   pcl::PointXYZI point;
+
   for (int i = 0; i < cloudSize; i++) {
     // ?
     // use imu data to register original scanned points into lidar coodinates in
@@ -298,6 +304,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
 
     if (imuPointerLast >= 0) {
       float pointTime = relTime * scanPeriod;
+      // get imuPointerFront which is the closest with timeScanCur + pointTime
       while (imuPointerFront != imuPointerLast) {
         if (timeScanCur + pointTime < imuTime[imuPointerFront]) {
           break;
@@ -305,7 +312,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
         imuPointerFront = (imuPointerFront + 1) % imuQueLength;
       }
 
-      // use the newest imu data if no newer imu
+      // use the newest imu data
       if (timeScanCur + pointTime > imuTime[imuPointerFront]) {
         imuRollCur = imuRoll[imuPointerFront];
         imuPitchCur = imuPitch[imuPointerFront];
@@ -318,7 +325,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
         imuShiftXCur = imuShiftX[imuPointerFront];
         imuShiftYCur = imuShiftY[imuPointerFront];
         imuShiftZCur = imuShiftZ[imuPointerFront];
-      // interpolate in all existing imu data if there are newer imu data
+      // interpolate imu data between imuPointerFront and imuPointerBack
       } else {
         int imuPointerBack = (imuPointerFront + imuQueLength - 1) % imuQueLength;
         float ratioFront = (timeScanCur + pointTime - imuTime[imuPointerBack])
@@ -370,11 +377,12 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
         imuShiftYStart = imuShiftYCur;
         imuShiftZStart = imuShiftZCur;
       } else {
-        // deal with motion distortion
+        // imuShift to start time coordinate
+        // GPS can be integrated here
         ShiftToStartIMU(pointTime);
-        //
+        // imuVelo to start time coordinate
         VeloToStartIMU();
-        //
+        // point to start time coordinate to deal with motion distortion
         TransformToStartIMU(&point);
       }
     }
@@ -701,12 +709,12 @@ int main(int argc, char** argv)
   ros::init(argc, argv, "scanRegistration");
   ros::NodeHandle nh;
 
-  for (int i = 0; i < 16; i++) {
+  for (int i = 0; i < N_SCANS; i++) {
     laserCloudScans[i].reset(new pcl::PointCloud<pcl::PointXYZI>());
   }
 
   ros::Subscriber subLaserCloud = nh.subscribe<sensor_msgs::PointCloud2>
-                                  ("/velodyne_cloud", 2, laserCloudHandler);
+                                  ("/velodyne_points", 2, laserCloudHandler);
 
   ros::Subscriber subImu = nh.subscribe<sensor_msgs::Imu> ("/imu/data", 50, imuHandler);
 
