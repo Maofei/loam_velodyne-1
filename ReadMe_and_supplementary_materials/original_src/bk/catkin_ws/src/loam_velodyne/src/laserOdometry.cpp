@@ -683,38 +683,12 @@ int main(int argc, char** argv)
               tripod2 = laserCloudSurfLast->points[pointSearchSurfInd2[i]];
               tripod3 = laserCloudSurfLast->points[pointSearchSurfInd3[i]];
 
-              float pa = (tripod2.y - tripod1.y) * (tripod3.z - tripod1.z) -
-                         (tripod3.y - tripod1.y) * (tripod2.z - tripod1.z);
-              float pb = (tripod2.z - tripod1.z) * (tripod3.x - tripod1.x) -
-                         (tripod3.z - tripod1.z) * (tripod2.x - tripod1.x);
-              float pc = (tripod2.x - tripod1.x) * (tripod3.y - tripod1.y) -
-                         (tripod3.x - tripod1.x) * (tripod2.y - tripod1.y);
-              float pd = -(pa * tripod1.x + pb * tripod1.y + pc * tripod1.z);
+              float pa, pb, pc, pd;
+              solvePlane(tripod1, tripod2, tripod3,
+                         pa, pb, pc, pd);
 
-              float ps = length3d(pa, pb, pc);
-
-              if (ps == 0) {
-                std::cout<<"FATAL ERROR, surfPointsFlat id: "<<i<<std::endl;
-                std::cout<<"pa: "<<pa<<std::endl;
-                std::cout<<"pb: "<<pb<<std::endl;
-                std::cout<<"pc: "<<pc<<std::endl;
-                std::cout<<"pd: "<<pd<<std::endl;
-                std::cout<<"tripod1: "<<tripod1<<std::endl;
-                std::cout<<"tripod2: "<<tripod2<<std::endl;
-                std::cout<<"tripod3: "<<tripod3<<std::endl;
-                std::cout<<"pointSearchSurfInd1[i]: "<<pointSearchSurfInd1[i]<<std::endl;
-                std::cout<<"pointSearchSurfInd2[i]: "<<pointSearchSurfInd2[i]<<std::endl;
-                std::cout<<"pointSearchSurfInd3[i]: "<<pointSearchSurfInd3[i]<<std::endl;
-              }
-
-              // normal vector of the plane
-              pa /= ps;
-              pb /= ps;
-              pc /= ps;
-              pd /= ps;
-
-              // this is exactly the distance from pointSel to planar patch
-              // {tripod1, tripod2, tripod3}
+              // this is exactly the distance from pointSel to
+              // planar patch{tripod1, tripod2, tripod3}
               float pd2 = pa * pointSel.x + pb * pointSel.y + pc * pointSel.z + pd;
               /*
               pointProj = pointSel;

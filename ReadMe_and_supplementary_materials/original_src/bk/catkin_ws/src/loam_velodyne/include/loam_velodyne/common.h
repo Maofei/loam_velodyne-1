@@ -53,9 +53,45 @@ inline float length2d(float x, float y) {
 	return sqrt(pow(x, 2) + pow(y, 2));
 }
 inline float sqrDis(pcl::PointXYZI p1, pcl::PointXYZI p2) {
-	return pow(p1.x - p2.x, 2) + 
-	       pow(p1.y - p2.y, 2) + 
+	return pow(p1.x - p2.x, 2) +
+	       pow(p1.y - p2.y, 2) +
 	       pow(p1.z - p2.z, 2);
+}
+
+inline void solvePlane(const pcl::PointXYZI& tripod1,
+                       const pcl::PointXYZI& tripod2,
+                       const pcl::PointXYZI& tripod3,
+                       float& pa, float& pb,
+                       float& pc, float& pd) {
+    pa = (tripod2.y - tripod1.y) * (tripod3.z - tripod1.z) -
+        (tripod3.y - tripod1.y) * (tripod2.z - tripod1.z);
+    pb = (tripod2.z - tripod1.z) * (tripod3.x - tripod1.x) -
+        (tripod3.z - tripod1.z) * (tripod2.x - tripod1.x);
+    pc = (tripod2.x - tripod1.x) * (tripod3.y - tripod1.y) -
+        (tripod3.x - tripod1.x) * (tripod2.y - tripod1.y);
+    pd = -(pa * tripod1.x + pb * tripod1.y + pc * tripod1.z);
+
+    float ps = length3d(pa, pb, pc);
+
+    //if (ps == 0) {
+    //  std::cout<<"FATAL ERROR, surfPointsFlat id: "<<i<<std::endl;
+    //  std::cout<<"pa: "<<pa<<std::endl;
+    //  std::cout<<"pb: "<<pb<<std::endl;
+    //  std::cout<<"pc: "<<pc<<std::endl;
+    //  std::cout<<"pd: "<<pd<<std::endl;
+    //  std::cout<<"tripod1: "<<tripod1<<std::endl;
+    //  std::cout<<"tripod2: "<<tripod2<<std::endl;
+    //  std::cout<<"tripod3: "<<tripod3<<std::endl;
+    //  std::cout<<"pointSearchSurfInd1[i]: "<<pointSearchSurfInd1[i]<<std::endl;
+    //  std::cout<<"pointSearchSurfInd2[i]: "<<pointSearchSurfInd2[i]<<std::endl;
+    //  std::cout<<"pointSearchSurfInd3[i]: "<<pointSearchSurfInd3[i]<<std::endl;
+    //}
+
+    // normal vector of the plane
+    pa /= ps;
+    pb /= ps;
+    pc /= ps;
+    pd /= ps;
 }
 
 struct FreqReport {
@@ -67,7 +103,7 @@ struct FreqReport {
       return;
     }
     auto cur_time = std::chrono::system_clock::now();
-    ROS_INFO("time interval of %s = %f seconds\n", 
+    ROS_INFO("time interval of %s = %f seconds\n",
     	    name.c_str(),
             std::chrono::duration_cast<
                 std::chrono::duration<float, std::ratio<1, 1>>>(
