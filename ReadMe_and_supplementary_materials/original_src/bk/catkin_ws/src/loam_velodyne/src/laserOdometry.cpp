@@ -63,7 +63,7 @@ float imuRollLast = 0, imuPitchLast = 0, imuYawLast = 0;
 float imuShiftFromStartX = 0, imuShiftFromStartY = 0, imuShiftFromStartZ = 0;
 float imuVeloFromStartX = 0, imuVeloFromStartY = 0, imuVeloFromStartZ = 0;
 
-// ??
+// 
 void TransformToStart(pcl::PointXYZI *pi, pcl::PointXYZI *po)
 {
   // this is scanPeriod * relTime
@@ -90,7 +90,7 @@ void TransformToStart(pcl::PointXYZI *pi, pcl::PointXYZI *po)
   po->intensity = pi->intensity;
 }
 
-// ??
+// transform to start first, then to end, then consider IMU
 void TransformToEnd(pcl::PointXYZI *pi, pcl::PointXYZI *po)
 {
   float s = 10 * (pi->intensity - int(pi->intensity));
@@ -187,60 +187,90 @@ void PluginIMURotation(float bcx, float bcy, float bcz,
   float salz = sin(alz);
   float calz = cos(alz);
 
-  float srx = -sbcx * (salx * sblx + calx * caly * cblx * cbly + calx * cblx * saly * sbly)
-            - cbcx * cbcz * (calx * saly * (cbly * sblz - cblz * sblx * sbly)
-            - calx * caly * (sbly * sblz + cbly * cblz * sblx) + cblx * cblz * salx)
-            - cbcx * sbcz * (calx * caly * (cblz * sbly - cbly * sblx * sblz)
-            - calx * saly * (cbly * cblz + sblx * sbly * sblz) + cblx * salx * sblz);
+  float srx = -sbcx * (salx * sblx + 
+                       calx * caly * cblx * cbly + 
+                       calx * cblx * saly * sbly)
+              - cbcx * cbcz * (calx * saly * (cbly * sblz - cblz * sblx * sbly) -
+                               calx * caly * (sbly * sblz + cbly * cblz * sblx) +
+                               cblx * cblz * salx)
+              - cbcx * sbcz * (calx * caly * (cblz * sbly - cbly * sblx * sblz) -
+                               calx * saly * (cbly * cblz + sblx * sbly * sblz) + 
+                               cblx * salx * sblz);
   acx = -asin(srx);
 
-  float srycrx = (cbcy * sbcz - cbcz * sbcx * sbcy) * (calx * saly * (cbly * sblz - cblz * sblx * sbly)
-               - calx * caly * (sbly * sblz + cbly * cblz * sblx) + cblx * cblz * salx)
-               - (cbcy * cbcz + sbcx * sbcy * sbcz) * (calx * caly * (cblz * sbly - cbly * sblx * sblz)
-               - calx * saly * (cbly * cblz + sblx * sbly * sblz) + cblx * salx * sblz)
-               + cbcx * sbcy * (salx * sblx + calx * caly * cblx * cbly + calx * cblx * saly * sbly);
+  float srycrx = (cbcy * sbcz - cbcz * sbcx * sbcy) * (calx * saly * (cbly * sblz - cblz * sblx * sbly) - 
+                                                       calx * caly * (sbly * sblz + cbly * cblz * sblx) + 
+                                                       cblx * cblz * salx)
+                 - (cbcy * cbcz + sbcx * sbcy * sbcz) * (calx * caly * (cblz * sbly - cbly * sblx * sblz) - 
+                                                         calx * saly * (cbly * cblz + sblx * sbly * sblz) + 
+                                                         cblx * salx * sblz)
+                 + cbcx * sbcy * (salx * sblx + 
+                                  calx * caly * cblx * cbly + 
+                                  calx * cblx * saly * sbly);
 
-  float crycrx = (cbcz * sbcy - cbcy * sbcx * sbcz) * (calx * caly * (cblz * sbly - cbly * sblx * sblz)
-               - calx * saly * (cbly * cblz + sblx * sbly * sblz) + cblx * salx * sblz)
-               - (sbcy * sbcz + cbcy * cbcz * sbcx) * (calx * saly * (cbly * sblz - cblz * sblx * sbly)
-               - calx * caly * (sbly * sblz + cbly * cblz * sblx) + cblx * cblz * salx)
-               + cbcx * cbcy * (salx * sblx + calx * caly * cblx * cbly + calx * cblx * saly * sbly);
+  float crycrx = (cbcz * sbcy - cbcy * sbcx * sbcz) * (calx * caly * (cblz * sbly - cbly * sblx * sblz) - 
+                                                       calx * saly * (cbly * cblz + sblx * sbly * sblz) + 
+                                                       cblx * salx * sblz)
+                 - (sbcy * sbcz + cbcy * cbcz * sbcx) * (calx * saly * (cbly * sblz - cblz * sblx * sbly) - 
+                                                         calx * caly * (sbly * sblz + cbly * cblz * sblx) + 
+                                                         cblx * cblz * salx)
+               + cbcx * cbcy * (salx * sblx + 
+                                calx * caly * cblx * cbly + 
+                                calx * cblx * saly * sbly);
   acy = atan2(srycrx / cos(acx), crycrx / cos(acx));
 
-  float srzcrx = sbcx*(cblx*cbly*(calz*saly - caly*salx*salz)
-               - cblx*sbly*(caly*calz + salx*saly*salz) + calx*salz*sblx)
-               - cbcx*cbcz*((caly*calz + salx*saly*salz)*(cbly*sblz - cblz*sblx*sbly)
-               + (calz*saly - caly*salx*salz)*(sbly*sblz + cbly*cblz*sblx)
-               - calx*cblx*cblz*salz) + cbcx*sbcz*((caly*calz + salx*saly*salz)*(cbly*cblz
-               + sblx*sbly*sblz) + (calz*saly - caly*salx*salz)*(cblz*sbly - cbly*sblx*sblz)
-               + calx*cblx*salz*sblz);
-  float crzcrx = sbcx*(cblx*sbly*(caly*salz - calz*salx*saly)
-               - cblx*cbly*(saly*salz + caly*calz*salx) + calx*calz*sblx)
-               + cbcx*cbcz*((saly*salz + caly*calz*salx)*(sbly*sblz + cbly*cblz*sblx)
-               + (caly*salz - calz*salx*saly)*(cbly*sblz - cblz*sblx*sbly)
-               + calx*calz*cblx*cblz) - cbcx*sbcz*((saly*salz + caly*calz*salx)*(cblz*sbly
-               - cbly*sblx*sblz) + (caly*salz - calz*salx*saly)*(cbly*cblz + sblx*sbly*sblz)
-               - calx*calz*cblx*sblz);
+  float srzcrx = sbcx*(cblx*cbly*(calz*saly - caly*salx*salz) - 
+                       cblx*sbly*(caly*calz + salx*saly*salz) + 
+                       calx*salz*sblx)
+                 - cbcx*cbcz*((caly*calz + salx*saly*salz)*(cbly*sblz - cblz*sblx*sbly) + 
+                              (calz*saly - caly*salx*salz)*(sbly*sblz + cbly*cblz*sblx) - 
+                              calx*cblx*cblz*salz) 
+                 + cbcx*sbcz*((caly*calz + salx*saly*salz)*(cbly*cblz + sblx*sbly*sblz) + 
+                              (calz*saly - caly*salx*salz)*(cblz*sbly - cbly*sblx*sblz) + 
+                              calx*cblx*salz*sblz);
+  float crzcrx = sbcx*(cblx*sbly*(caly*salz - calz*salx*saly) - 
+                       cblx*cbly*(saly*salz + caly*calz*salx) + 
+                       calx*calz*sblx)
+                 + cbcx*cbcz*((saly*salz + caly*calz*salx)*(sbly*sblz + cbly*cblz*sblx) + 
+                              (caly*salz - calz*salx*saly)*(cbly*sblz - cblz*sblx*sbly) + 
+                              calx*calz*cblx*cblz)
+                 - cbcx*sbcz*((saly*salz + caly*calz*salx)*(cblz*sbly - cbly*sblx*sblz) + 
+                              (caly*salz - calz*salx*saly)*(cbly*cblz + sblx*sbly*sblz) - 
+                              calx*calz*cblx*sblz);
   acz = atan2(srzcrx / cos(acx), crzcrx / cos(acx));
 }
 
-void AccumulateRotation(float cx, float cy, float cz,
-                        float lx, float ly, float lz,
+void AccumulateRotation(const float cx, const float cy, const float cz,
+                        const float lx, const float ly, const float lz,
                         float &ox, float &oy, float &oz)
 {
-  float srx = cos(lx)*cos(cx)*sin(ly)*sin(cz) - cos(cx)*cos(cz)*sin(lx) - cos(lx)*cos(ly)*sin(cx);
+  float srx = cos(lx)*cos(cx)*sin(ly)*sin(cz) - 
+              cos(cx)*cos(cz)*sin(lx) - 
+              cos(lx)*cos(ly)*sin(cx);
   ox = -asin(srx);
 
-  float srycrx = sin(lx)*(cos(cy)*sin(cz) - cos(cz)*sin(cx)*sin(cy)) + cos(lx)*sin(ly)*(cos(cy)*cos(cz)
-               + sin(cx)*sin(cy)*sin(cz)) + cos(lx)*cos(ly)*cos(cx)*sin(cy);
-  float crycrx = cos(lx)*cos(ly)*cos(cx)*cos(cy) - cos(lx)*sin(ly)*(cos(cz)*sin(cy)
-               - cos(cy)*sin(cx)*sin(cz)) - sin(lx)*(sin(cy)*sin(cz) + cos(cy)*cos(cz)*sin(cx));
+  float srycrx = sin(lx)*(cos(cy)*sin(cz) - 
+                 cos(cz)*sin(cx)*sin(cy)) + 
+                 cos(lx)*sin(ly)*(cos(cy)*cos(cz) + 
+                 sin(cx)*sin(cy)*sin(cz)) + 
+                 cos(lx)*cos(ly)*cos(cx)*sin(cy);
+  float crycrx = cos(lx)*cos(ly)*cos(cx)*cos(cy) - 
+                 cos(lx)*sin(ly)*(cos(cz)*sin(cy) - 
+                 cos(cy)*sin(cx)*sin(cz)) - 
+                 sin(lx)*(sin(cy)*sin(cz) + 
+                 cos(cy)*cos(cz)*sin(cx));
   oy = atan2(srycrx / cos(ox), crycrx / cos(ox));
 
-  float srzcrx = sin(cx)*(cos(lz)*sin(ly) - cos(ly)*sin(lx)*sin(lz)) + cos(cx)*sin(cz)*(cos(ly)*cos(lz)
-               + sin(lx)*sin(ly)*sin(lz)) + cos(lx)*cos(cx)*cos(cz)*sin(lz);
-  float crzcrx = cos(lx)*cos(lz)*cos(cx)*cos(cz) - cos(cx)*sin(cz)*(cos(ly)*sin(lz)
-               - cos(lz)*sin(lx)*sin(ly)) - sin(cx)*(sin(ly)*sin(lz) + cos(ly)*cos(lz)*sin(lx));
+  float srzcrx = sin(cx)*(cos(lz)*sin(ly) - 
+                 cos(ly)*sin(lx)*sin(lz)) + 
+                 cos(cx)*sin(cz)*(cos(ly)*cos(lz) +
+                 sin(lx)*sin(ly)*sin(lz)) + 
+                 cos(lx)*cos(cx)*cos(cz)*sin(lz);
+  float crzcrx = cos(lx)*cos(lz)*cos(cx)*cos(cz) - 
+                 cos(cx)*sin(cz)*(cos(ly)*sin(lz) - 
+                 cos(lz)*sin(lx)*sin(ly)) - 
+                 sin(cx)*(sin(ly)*sin(lz) + 
+                 cos(ly)*cos(lz)*sin(lx));
   oz = atan2(srzcrx / cos(ox), crzcrx / cos(ox));
 }
 
@@ -481,11 +511,7 @@ int main(int argc, char** argv)
             // transform current point to the frame of start time point
             TransformToStart(&cornerPointsSharp->points[i], &pointSel);
             // locate the nearest point in last corner points to this cornerPointsSharp point every 5 iters
-            if (iterCount % 5 == 0) {
-              /* necessary ?
-              std::vector<int> indices;
-              pcl::removeNaNFromPointCloud(*laserCloudCornerLast, *laserCloudCornerLast, indices);
-              */
+            if (iterCount % 5 == 0) { // ?
               // search the nearest point
               kdtreeCornerLast->nearestKSearch(pointSel, 1, pointSearchInd, pointSearchSqDis);
               int closestPointInd = -1, minPointInd2 = -1;
@@ -502,7 +528,7 @@ int main(int argc, char** argv)
                 for (int j = closestPointInd + 1; j < cornerPointsSharpNum; j++) {
                   // TODO: j is bounded by cornerPointsSharpNum, can it be used to index laserCloudCornerLast?
                   if (int(laserCloudCornerLast->points[j].intensity) > closestPointScan + 2.5) {
-                    break;
+                    break; // TODO: why not continue?
                   }
                   // squared distance between the other point and pointSel
                   pointSqDis = sqrDis(laserCloudCornerLast->points[j], pointSel);
@@ -556,30 +582,28 @@ int main(int argc, char** argv)
               //   (x0 - x2) (z0 - z1) - (x0 - x1) (z0 - z2),
               //   (x0 - x1) (y0 - y2) - (x0 - x2) (y0 - y1)]
               // a012 = |cross(pointSel - tripod1, pointSel - tripod2)|
-              float a012 = sqrt(((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
-                              * ((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
-                              + ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
-                              * ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
-                              + ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))
-                              * ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1)));
+              float a012 = length3d((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1),
+                                    (x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1),
+                                    (x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1));
+
               // l12 = |tripod1 - tripod2|
-              float l12 = sqrt((x1 - x2)*(x1 - x2) + (y1 - y2)*(y1 - y2) + (z1 - z2)*(z1 - z2));
-
-              // diff(ld2, x0), ld2 is the distance from pointSel to edge
-              // (tripod1, tripod2) as defined below
-              float la = ((y1 - y2)*((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
-                       + (z1 - z2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))) / a012 / l12;
-
-              // diff(ld2, y0)
-              float lb = -((x1 - x2)*((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
-                       - (z1 - z2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
-
-              // diff(ld2, z0)
-              float lc = -((x1 - x2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
-                       + (y1 - y2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
-
+              float l12 = length3d(x1 - x2, 
+                                   y1 - y2, 
+                                   z1 - z2);
               // distance from pointSel to edge (tripod1, tripod2)
               float ld2 = a012 / l12;
+
+              // diff(ld2, x0)??
+              float la = ((y1 - y2)* ((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
+                        + (z1 - z2)* ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))) / a012 / l12;
+
+              // diff(ld2, y0)
+              float lb = -((x1 - x2)* ((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
+                         - (z1 - z2)* ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
+
+              // diff(ld2, z0)
+              float lc = -((x1 - x2)* ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
+                         + (y1 - y2)* ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
               /*
               pointProj = pointSel;
               pointProj.x -= la * ld2;
@@ -610,6 +634,7 @@ int main(int argc, char** argv)
 
           //=================================================================
           // ROS_INFO("corner points finished, dealing with surface points");
+          //=================================================================
 
           for (int i = 0; i < surfPointsFlatNum; i++) {
             TransformToStart(&surfPointsFlat->points[i], &pointSel);
@@ -751,37 +776,68 @@ int main(int argc, char** argv)
             float tx = s * transform[3];
             float ty = s * transform[4];
             float tz = s * transform[5];
+            // ???
+            float arx = (- s*crx*sry*srz*pointOri.x 
+                         + s*crx*crz*sry*pointOri.y 
+                         + s*srx*sry*pointOri.z
+                         + s*tx*crx*sry*srz 
+                         - s*ty*crx*crz*sry 
+                         - s*tz*srx*sry) * coeff.x
+                      + (s*srx*srz*pointOri.x - 
+                         s*crz*srx*pointOri.y + 
+                         s*crx*pointOri.z + 
+                         s*ty*crz*srx - 
+                         s*tz*crx - 
+                         s*tx*srx*srz) * coeff.y
+                      + (s*crx*cry*srz*pointOri.x - 
+                         s*crx*cry*crz*pointOri.y - 
+                         s*cry*srx*pointOri.z + 
+                         s*tz*cry*srx + 
+                         s*ty*crx*cry*crz - 
+                         s*tx*crx*cry*srz) * coeff.z;
 
-            float arx = (-s*crx*sry*srz*pointOri.x + s*crx*crz*sry*pointOri.y + s*srx*sry*pointOri.z
-                      + s*tx*crx*sry*srz - s*ty*crx*crz*sry - s*tz*srx*sry) * coeff.x
-                      + (s*srx*srz*pointOri.x - s*crz*srx*pointOri.y + s*crx*pointOri.z
-                      + s*ty*crz*srx - s*tz*crx - s*tx*srx*srz) * coeff.y
-                      + (s*crx*cry*srz*pointOri.x - s*crx*cry*crz*pointOri.y - s*cry*srx*pointOri.z
-                      + s*tz*cry*srx + s*ty*crx*cry*crz - s*tx*crx*cry*srz) * coeff.z;
+            float ary = (  (-s*crz*sry - s*cry*srx*srz)*pointOri.x
+                         + (s*cry*crz*srx - s*sry*srz)*pointOri.y 
+                         - s*crx*cry*pointOri.z
+                         + tx*(s*crz*sry + s*cry*srx*srz) 
+                         + ty*(s*sry*srz - s*cry*crz*srx)
+                         + s*tz*crx*cry
+                        ) * coeff.x
+                      + (  (s*cry*crz - s*srx*sry*srz)*pointOri.x
+                         + (s*cry*srz + s*crz*srx*sry)*pointOri.y 
+                         - s*crx*sry*pointOri.z
+                         + s*tz*crx*sry 
+                         - ty*(s*cry*srz + s*crz*srx*sry)
+                         - tx*(s*cry*crz - s*srx*sry*srz)
+                        ) * coeff.z;
 
-            float ary = ((-s*crz*sry - s*cry*srx*srz)*pointOri.x
-                      + (s*cry*crz*srx - s*sry*srz)*pointOri.y - s*crx*cry*pointOri.z
-                      + tx*(s*crz*sry + s*cry*srx*srz) + ty*(s*sry*srz - s*cry*crz*srx)
-                      + s*tz*crx*cry) * coeff.x
-                      + ((s*cry*crz - s*srx*sry*srz)*pointOri.x
-                      + (s*cry*srz + s*crz*srx*sry)*pointOri.y - s*crx*sry*pointOri.z
-                      + s*tz*crx*sry - ty*(s*cry*srz + s*crz*srx*sry)
-                      - tx*(s*cry*crz - s*srx*sry*srz)) * coeff.z;
+            float arz = (  (-s*cry*srz - s*crz*srx*sry)*pointOri.x 
+                         + (s*cry*crz - s*srx*sry*srz)*pointOri.y
+                         + tx*(s*cry*srz + s*crz*srx*sry) 
+                         - ty*(s*cry*crz - s*srx*sry*srz)
+                        ) * coeff.x
+                      + (  -s*crx*crz*pointOri.x 
+                           -s*crx*srz*pointOri.y
+                           +s*ty*crx*srz 
+                           + s*tx*crx*crz
+                        ) * coeff.y
+                      + (  (s*cry*crz*srx - s*sry*srz)*pointOri.x 
+                         + (s*crz*sry + s*cry*srx*srz)*pointOri.y
+                         + tx*(s*sry*srz - s*cry*crz*srx) 
+                         - ty*(s*crz*sry + s*cry*srx*srz)
+                        ) * coeff.z;
 
-            float arz = ((-s*cry*srz - s*crz*srx*sry)*pointOri.x + (s*cry*crz - s*srx*sry*srz)*pointOri.y
-                      + tx*(s*cry*srz + s*crz*srx*sry) - ty*(s*cry*crz - s*srx*sry*srz)) * coeff.x
-                      + (-s*crx*crz*pointOri.x - s*crx*srz*pointOri.y
-                      + s*ty*crx*srz + s*tx*crx*crz) * coeff.y
-                      + ((s*cry*crz*srx - s*sry*srz)*pointOri.x + (s*crz*sry + s*cry*srx*srz)*pointOri.y
-                      + tx*(s*sry*srz - s*cry*crz*srx) - ty*(s*crz*sry + s*cry*srx*srz)) * coeff.z;
+            float atx = -s*(cry*crz - srx*sry*srz) * coeff.x 
+                        +s*crx*srz * coeff.y
+                        -s*(crz*sry + cry*srx*srz) * coeff.z;
 
-            float atx = -s*(cry*crz - srx*sry*srz) * coeff.x + s*crx*srz * coeff.y
-                      - s*(crz*sry + cry*srx*srz) * coeff.z;
+            float aty = -s*(cry*srz + crz*srx*sry) * coeff.x 
+                        -s*crx*crz * coeff.y
+                        -s*(sry*srz - cry*crz*srx) * coeff.z;
 
-            float aty = -s*(cry*srz + crz*srx*sry) * coeff.x - s*crx*crz * coeff.y
-                      - s*(sry*srz - cry*crz*srx) * coeff.z;
-
-            float atz = s*crx*sry * coeff.x - s*srx * coeff.y - s*crx*cry * coeff.z;
+            float atz = s*crx*sry * coeff.x 
+                        - s*srx * coeff.y 
+                        - s*crx*cry * coeff.z;
 
             float d2 = coeff.intensity;
 
@@ -798,6 +854,7 @@ int main(int argc, char** argv)
           matAtA = matAt * matA;
           matAtB = matAt * matB;
           // TODO(qmf): check solve speed
+          // ???      6*6     6*1    6*1
           cv::solve(matAtA, matAtB, matX, cv::DECOMP_QR);
 
           if (iterCount == 0) { // initialize
@@ -852,20 +909,18 @@ int main(int argc, char** argv)
             transform[5] += matX.at<float>(5, 0);
           }
           //-------
-          float deltaR = sqrt(
-                             pow(rad2deg(matX.at<float>(0, 0)), 2)
-                           + pow(rad2deg(matX.at<float>(1, 0)), 2)
-                           + pow(rad2deg(matX.at<float>(2, 0)), 2));
-          float deltaT = sqrt(
-                             pow(matX.at<float>(3, 0) * 100, 2)
-                           + pow(matX.at<float>(4, 0) * 100, 2)
-                           + pow(matX.at<float>(5, 0) * 100, 2));
+          float deltaR = length3d(rad2deg(matX.at<float>(0, 0)),
+                                  rad2deg(matX.at<float>(1, 0)),
+                                  rad2deg(matX.at<float>(2, 0)));
+          float deltaT = length3d(matX.at<float>(3, 0) * 100,
+                                  matX.at<float>(4, 0) * 100,
+                                  matX.at<float>(5, 0) * 100);
 
           if (deltaR < 0.1 && deltaT < 0.1) {
             break;
           }
           // ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", iterCount, deltaR, deltaT);
-        }
+        }// iterate optimization finished
       }
 
       // accumulate transform
@@ -874,10 +929,10 @@ int main(int argc, char** argv)
                          -transform[0], -transform[1] * 1.05, -transform[2],
                          rx, ry, rz);
 
-      float x1 = cos(rz) * (transform[3] - imuShiftFromStartX)
-               - sin(rz) * (transform[4] - imuShiftFromStartY);
-      float y1 = sin(rz) * (transform[3] - imuShiftFromStartX)
-               + cos(rz) * (transform[4] - imuShiftFromStartY);
+      float x1 = cos(rz) * (transform[3] - imuShiftFromStartX) -
+                 sin(rz) * (transform[4] - imuShiftFromStartY);
+      float y1 = sin(rz) * (transform[3] - imuShiftFromStartX) +
+                 cos(rz) * (transform[4] - imuShiftFromStartY);
       float z1 = transform[5] * 1.05 - imuShiftFromStartZ;
 
       float x2 = x1;
@@ -888,8 +943,10 @@ int main(int argc, char** argv)
       ty = transformSum[4] - y2;
       tz = transformSum[5] - (-sin(ry) * x2 + cos(ry) * z2);
 
-      PluginIMURotation(rx, ry, rz, imuPitchStart, imuYawStart, imuRollStart,
-                        imuPitchLast, imuYawLast, imuRollLast, rx, ry, rz);
+      PluginIMURotation(rx, ry, rz, 
+                        imuPitchStart, imuYawStart, imuRollStart,
+                        imuPitchLast, imuYawLast, imuRollLast, 
+                        rx, ry, rz);
 
       transformSum[0] = rx;
       transformSum[1] = ry;
@@ -919,12 +976,14 @@ int main(int argc, char** argv)
 
       int cornerPointsLessSharpNum = cornerPointsLessSharp->points.size();
       for (int i = 0; i < cornerPointsLessSharpNum; i++) {
-        TransformToEnd(&cornerPointsLessSharp->points[i], &cornerPointsLessSharp->points[i]);
+        TransformToEnd(&cornerPointsLessSharp->points[i], 
+                       &cornerPointsLessSharp->points[i]);
       }
 
       int surfPointsLessFlatNum = surfPointsLessFlat->points.size();
       for (int i = 0; i < surfPointsLessFlatNum; i++) {
-        TransformToEnd(&surfPointsLessFlat->points[i], &surfPointsLessFlat->points[i]);
+        TransformToEnd(&surfPointsLessFlat->points[i], 
+                       &surfPointsLessFlat->points[i]);
       }
 
       frameCount++;
@@ -932,7 +991,8 @@ int main(int argc, char** argv)
         int laserCloudFullResNum = laserCloudFullRes->points.size();
         for (int i = 0; i < laserCloudFullResNum; i++) {
           // transform all points in this sweep to end
-          TransformToEnd(&laserCloudFullRes->points[i], &laserCloudFullRes->points[i]);
+          TransformToEnd(&laserCloudFullRes->points[i], 
+                         &laserCloudFullRes->points[i]);
         }
       }
 
