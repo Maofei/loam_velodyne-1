@@ -245,6 +245,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
     // ?
     // use imu data to register original scanned points into lidar coodinates in
     // different scan lines
+    // ROS convention: x = forward, y = left, z = up
     point.x = laserCloudIn->points[i].y;
     point.y = laserCloudIn->points[i].z;
     point.z = laserCloudIn->points[i].x;
@@ -490,8 +491,9 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
   }
   //ROS_INFO("cloudNeighborPicked initialized");
 
+  surfPointsLessFlatScan->clear();
   for (int i = 0; i < N_SCANS; i++) {
-    surfPointsLessFlatScan->clear();
+    //surfPointsLessFlatScan->clear();
     // ?
     for (int j = 0; j < 6; j++) {
       int sp = (scanStartInd[i] * (6 - j)  + scanEndInd[i] * j) / 6;
@@ -605,15 +607,21 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
       }
     }
     // TODO(qmf):down sampling surfPoint with VoxelGrid, maybe not for dense map
-    surfPointsLessFlatScanDS->clear();
-    pcl::VoxelGrid<pcl::PointXYZI> downSizeFilter;
-    downSizeFilter.setInputCloud(surfPointsLessFlatScan);
-    downSizeFilter.setLeafSize(0.2, 0.2, 0.2);
-    downSizeFilter.filter(*surfPointsLessFlatScanDS);
+    //surfPointsLessFlatScanDS->clear();
+    //pcl::VoxelGrid<pcl::PointXYZI> downSizeFilter;
+    //downSizeFilter.setInputCloud(surfPointsLessFlatScan);
+    //downSizeFilter.setLeafSize(0.2, 0.2, 0.2);
+    //downSizeFilter.filter(*surfPointsLessFlatScanDS);
 
-    *surfPointsLessFlat += *surfPointsLessFlatScanDS;
+    //*surfPointsLessFlat += *surfPointsLessFlatScanDS;
   }
-  //ROS_INFO("feature points collected");
+  // remove duplicate points
+  pcl::VoxelGrid<pcl::PointXYZI> downSizeFilter;
+  downSizeFilter.setInputCloud(surfPointsLessFlatScan);
+  downSizeFilter.setLeafSize(0.1, 0.1, 0.1);
+  downSizeFilter.filter(*surfPointsLessFlat);
+
+  // ROS_INFO("feature points collected");
 
   sensor_msgs::PointCloud2 laserCloudMsg;
   pcl::toROSMsg(*laserCloud, laserCloudMsg);

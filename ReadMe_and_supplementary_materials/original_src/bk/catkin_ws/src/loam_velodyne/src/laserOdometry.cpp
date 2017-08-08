@@ -693,7 +693,7 @@ int main(int argc, char** argv)
 
               float ps = length3d(pa, pb, pc);
 
-              if (0 && ps == 0) {
+              if (ps == 0) {
                 std::cout<<"FATAL ERROR, surfPointsFlat id: "<<i<<std::endl;
                 std::cout<<"pa: "<<pa<<std::endl;
                 std::cout<<"pb: "<<pb<<std::endl;
