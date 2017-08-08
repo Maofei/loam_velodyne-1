@@ -58,17 +58,20 @@ inline float sqrDis(pcl::PointXYZI p1, pcl::PointXYZI p2) {
 	       pow(p1.z - p2.z, 2);
 }
 
+
+// Ref: http://tutorial.math.lamar.edu/Classes/CalcIII/EqnsOfPlanes.aspx
 inline void solvePlane(const pcl::PointXYZI& tripod1,
                        const pcl::PointXYZI& tripod2,
                        const pcl::PointXYZI& tripod3,
                        float& pa, float& pb,
-                       float& pc, float& pd) {
+                       float& pc, float& pd) 
+{
     pa = (tripod2.y - tripod1.y) * (tripod3.z - tripod1.z) -
-        (tripod3.y - tripod1.y) * (tripod2.z - tripod1.z);
+         (tripod3.y - tripod1.y) * (tripod2.z - tripod1.z);
     pb = (tripod2.z - tripod1.z) * (tripod3.x - tripod1.x) -
-        (tripod3.z - tripod1.z) * (tripod2.x - tripod1.x);
+         (tripod3.z - tripod1.z) * (tripod2.x - tripod1.x);
     pc = (tripod2.x - tripod1.x) * (tripod3.y - tripod1.y) -
-        (tripod3.x - tripod1.x) * (tripod2.y - tripod1.y);
+         (tripod3.x - tripod1.x) * (tripod2.y - tripod1.y);
     pd = -(pa * tripod1.x + pb * tripod1.y + pc * tripod1.z);
 
     float ps = length3d(pa, pb, pc);

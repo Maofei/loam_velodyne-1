@@ -615,7 +615,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
 
     //*surfPointsLessFlat += *surfPointsLessFlatScanDS;
   }
-  // remove duplicate points
+  // remove duplicate points in surfPointsLessFlat
   pcl::VoxelGrid<pcl::PointXYZI> downSizeFilter;
   downSizeFilter.setInputCloud(surfPointsLessFlatScan);
   downSizeFilter.setLeafSize(0.1, 0.1, 0.1);

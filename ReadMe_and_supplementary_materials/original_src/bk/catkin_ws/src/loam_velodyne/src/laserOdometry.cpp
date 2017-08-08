@@ -299,6 +299,7 @@ void laserCloudFullResHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloud
   newLaserCloudFullRes = true;
 }
 
+// update imu{Pitch,yaw,roll}Start, imu{Pitch,yaw,roll}Last, imuShiftFromStart{XYZ}, imuVeloFromStart{XYZ}
 void imuTransHandler(const sensor_msgs::PointCloud2ConstPtr& imuTransMsg)
 {
   timeImuTrans = imuTransMsg->header.stamp.toSec();
@@ -446,7 +447,7 @@ int main(int argc, char** argv)
         pubLaserCloudSurfLast.publish(laserCloudSurfLastMsg);
 
         transformSum[0] += imuPitchStart;
-        //transformSum[1] += imuYawStart;
+        //transformSum[1] += imuYawStart; ??
         transformSum[2] += imuRollStart;
 
         systemInited = true;
@@ -831,6 +832,7 @@ int main(int argc, char** argv)
           }
 
           //------- (bug fix: sometime the L-M optimization result matX contains NaN, which will break the whole node)
+          // which is due to duplicated points in surfPointsLessFlat
           if (std::isnan(matX.at<float>(0, 0))
             || std::isnan(matX.at<float>(1, 0))
             || std::isnan(matX.at<float>(2, 0))
@@ -838,18 +840,10 @@ int main(int argc, char** argv)
             || std::isnan(matX.at<float>(4, 0))
             || std::isnan(matX.at<float>(5, 0)))
           {
-            //ROS_INFO("[USER WARN]laser Odometry: NaN found in var \"matX\", this L-M optimization step is going to be ignored");
-            ROS_INFO("iter: %d, %f, %f, %f, %f, %f, %f",
-                     iterCount,
-                     matX.at<float>(0, 0),
-                     matX.at<float>(1, 0),
-                     matX.at<float>(2, 0),
-                     matX.at<float>(3, 0),
-                     matX.at<float>(4, 0),
-                     matX.at<float>(5, 0));
+            ROS_INFO("[USER WARN]laser Odometry: NaN found in var \"matX\""
+                     "this L-M optimization step is going to be ignored");
           } else{
-            //ROS_INFO("[USER WARN]laser Odometry: not NaN found in var \"matX\".");
-            ROS_INFO("iter: %d, Updating", iterCount);
+            // ROS_INFO("iter: %d, Updating", iterCount);
             transform[0] += matX.at<float>(0, 0);
             transform[1] += matX.at<float>(1, 0);
             transform[2] += matX.at<float>(2, 0);
@@ -870,7 +864,6 @@ int main(int argc, char** argv)
           if (deltaR < 0.1 && deltaT < 0.1) {
             break;
           }
-
           // ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", iterCount, deltaR, deltaT);
         }
       }
