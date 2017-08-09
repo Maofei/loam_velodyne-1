@@ -54,7 +54,7 @@ float pointSearchSurfInd1[MAX_POINTS];
 float pointSearchSurfInd2[MAX_POINTS];
 float pointSearchSurfInd3[MAX_POINTS];
 
-// rotation {x, y, z} or {pitch?, yaw?, roll?}, translation {x, y, z}
+// rotation {x,y,z}, translation {x,y,z} from start to now during a sweep
 float transform[6] = {0};
 float transformSum[6] = {0};
 
@@ -168,22 +168,28 @@ void PluginIMURotation(float bcx, float bcy, float bcz,
 {
   float sbcx = sin(bcx);
   float cbcx = cos(bcx);
+
   float sbcy = sin(bcy);
   float cbcy = cos(bcy);
+
   float sbcz = sin(bcz);
   float cbcz = cos(bcz);
 
   float sblx = sin(blx);
   float cblx = cos(blx);
+
   float sbly = sin(bly);
   float cbly = cos(bly);
+
   float sblz = sin(blz);
   float cblz = cos(blz);
 
   float salx = sin(alx);
   float calx = cos(alx);
+
   float saly = sin(aly);
   float caly = cos(aly);
+
   float salz = sin(alz);
   float calz = cos(alz);
 
@@ -214,9 +220,9 @@ void PluginIMURotation(float bcx, float bcy, float bcz,
                  - (sbcy * sbcz + cbcy * cbcz * sbcx) * (calx * saly * (cbly * sblz - cblz * sblx * sbly) - 
                                                          calx * caly * (sbly * sblz + cbly * cblz * sblx) + 
                                                          cblx * cblz * salx)
-               + cbcx * cbcy * (salx * sblx + 
-                                calx * caly * cblx * cbly + 
-                                calx * cblx * saly * sbly);
+                 + cbcx * cbcy * (salx * sblx + 
+                                  calx * caly * cblx * cbly + 
+                                  calx * cblx * saly * sbly);
   acy = atan2(srycrx / cos(acx), crycrx / cos(acx));
 
   float srzcrx = sbcx*(cblx*cbly*(calz*saly - caly*salx*salz) - 
@@ -250,27 +256,27 @@ void AccumulateRotation(const float cx, const float cy, const float cz,
   ox = -asin(srx);
 
   float srycrx = sin(lx)*(cos(cy)*sin(cz) - 
-                 cos(cz)*sin(cx)*sin(cy)) + 
+                          cos(cz)*sin(cx)*sin(cy)) + 
                  cos(lx)*sin(ly)*(cos(cy)*cos(cz) + 
-                 sin(cx)*sin(cy)*sin(cz)) + 
+                                  sin(cx)*sin(cy)*sin(cz)) + 
                  cos(lx)*cos(ly)*cos(cx)*sin(cy);
   float crycrx = cos(lx)*cos(ly)*cos(cx)*cos(cy) - 
                  cos(lx)*sin(ly)*(cos(cz)*sin(cy) - 
-                 cos(cy)*sin(cx)*sin(cz)) - 
+                                  cos(cy)*sin(cx)*sin(cz)) - 
                  sin(lx)*(sin(cy)*sin(cz) + 
-                 cos(cy)*cos(cz)*sin(cx));
+                          cos(cy)*cos(cz)*sin(cx));
   oy = atan2(srycrx / cos(ox), crycrx / cos(ox));
 
   float srzcrx = sin(cx)*(cos(lz)*sin(ly) - 
-                 cos(ly)*sin(lx)*sin(lz)) + 
+                          cos(ly)*sin(lx)*sin(lz)) + 
                  cos(cx)*sin(cz)*(cos(ly)*cos(lz) +
-                 sin(lx)*sin(ly)*sin(lz)) + 
+                                  sin(lx)*sin(ly)*sin(lz)) + 
                  cos(lx)*cos(cx)*cos(cz)*sin(lz);
   float crzcrx = cos(lx)*cos(lz)*cos(cx)*cos(cz) - 
                  cos(cx)*sin(cz)*(cos(ly)*sin(lz) - 
-                 cos(lz)*sin(lx)*sin(ly)) - 
+                                  cos(lz)*sin(lx)*sin(ly)) - 
                  sin(cx)*(sin(ly)*sin(lz) + 
-                 cos(ly)*cos(lz)*sin(lx));
+                          cos(ly)*cos(lz)*sin(lx));
   oz = atan2(srzcrx / cos(ox), crzcrx / cos(ox));
 }
 
@@ -445,7 +451,6 @@ int main(int argc, char** argv)
       if (!systemInited) {
         // swap cornerPoints**Less**Sharp and laserCloudCornerLast
         // initialize the "last clouds" & kdtrees, publish the first clouds,
-        // initialize the pitch and roll components of transformSum
         // initialize laserCloudCornerLast
         pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudTemp = cornerPointsLessSharp;
         cornerPointsLessSharp = laserCloudCornerLast;
@@ -476,6 +481,7 @@ int main(int argc, char** argv)
         laserCloudSurfLastMsg.header.frame_id = "/camera";
         pubLaserCloudSurfLast.publish(laserCloudSurfLastMsg);
 
+        // initialize the pitch and roll components of transformSum
         transformSum[0] += imuPitchStart;
         //transformSum[1] += imuYawStart; ??
         transformSum[2] += imuRollStart;
@@ -578,9 +584,9 @@ int main(int argc, char** argv)
               float z2 = tripod2.z;
 
               // cross(pointSel - tripod1, pointSel - tripod2) =
-              //  [(y0 - y1) (z0 - z2) - (y0 - y2) (z0 - z1),
-              //   (x0 - x2) (z0 - z1) - (x0 - x1) (z0 - z2),
-              //   (x0 - x1) (y0 - y2) - (x0 - x2) (y0 - y1)]
+              //  [(y0 - y2) (z0 - z1) - (y0 - y1) (z0 - z2),
+              //   (x0 - x1) (z0 - z2) - (x0 - x2) (z0 - z1),
+              //   (x0 - x2) (y0 - y1) - (x0 - x1) (y0 - y2)]
               // a012 = |cross(pointSel - tripod1, pointSel - tripod2)|
               float a012 = length3d((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1),
                                     (x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1),
@@ -590,20 +596,20 @@ int main(int argc, char** argv)
               float l12 = length3d(x1 - x2, 
                                    y1 - y2, 
                                    z1 - z2);
-              // distance from pointSel to edge (tripod1, tripod2)
+              // distance from pointSel to edge(tripod1, tripod2)
               float ld2 = a012 / l12;
 
               // diff(ld2, x0)??
-              float la = ((y1 - y2)* ((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
-                        + (z1 - z2)* ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))) / a012 / l12;
+              float la = ((y1 - y2)* ((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1)) +
+                          (z1 - z2)* ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))) / a012 / l12;
 
               // diff(ld2, y0)
-              float lb = -((x1 - x2)* ((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
-                         - (z1 - z2)* ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
+              float lb = -((x1 - x2)* ((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1)) -
+                           (z1 - z2)* ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
 
               // diff(ld2, z0)
-              float lc = -((x1 - x2)* ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
-                         + (y1 - y2)* ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
+              float lc = -((x1 - x2)* ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1)) +
+                           (y1 - y2)* ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
               /*
               pointProj = pointSel;
               pointProj.x -= la * ld2;
