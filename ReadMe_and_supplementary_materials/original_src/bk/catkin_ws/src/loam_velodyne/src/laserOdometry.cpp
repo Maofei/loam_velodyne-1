@@ -610,9 +610,11 @@ int main(int argc, char** argv)
               pointProj.y -= lb * ld2;
               pointProj.z -= lc * ld2;
               */
-              float s = 1.0; // TODO: step? weight?
+
+              // Bisquare weights
+              float s = 1.0;
               if (iterCount >= 5) {
-                s = 1 - 1.8 * fabs(ld2);  // TODO: why adjust s like this?
+                s = 1 - 1.8 * fabs(ld2); 
               }
 
               coeff.x = s * la;
@@ -722,7 +724,7 @@ int main(int argc, char** argv)
               pointProj.y -= pb * pd2;
               pointProj.z -= pc * pd2;
               */
-              // TODO: why adjust s like this?
+              // Bisquare weights
               float s = 1.0;
               if (iterCount >= 5) {
                 s = 1 - 1.8 * fabs(pd2) / sqrt(length3d(pointSel.x, pointSel.y, pointSel.z));
