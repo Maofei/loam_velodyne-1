@@ -164,7 +164,7 @@ void TransformToEnd(pcl::PointXYZI *pi, pcl::PointXYZI *po)
 void PluginIMURotation(float bcx, float bcy, float bcz,
                        float blx, float bly, float blz,
                        float alx, float aly, float alz,
-                       float &acx, float &acy, float &acz)
+                       float &acx, float &acy, float &acz) 
 {
   float sbcx = sin(bcx);
   float cbcx = cos(bcx);
@@ -784,7 +784,7 @@ int main(int argc, char** argv)
             float tx = s * transform[3];
             float ty = s * transform[4];
             float tz = s * transform[5];
-            // ???
+            // jacobian
             float arx = (- s*crx*sry*srz*pointOri.x 
                          + s*crx*crz*sry*pointOri.y 
                          + s*srx*sry*pointOri.z
@@ -862,7 +862,8 @@ int main(int argc, char** argv)
           matAtA = matAt * matA;
           matAtB = matAt * matB;
           // TODO(qmf): check solve speed
-          // ???      6*6     6*1    6*1
+          // here A is the jacobian, B is the objective residual
+          //         6*6     6*1    6*1
           cv::solve(matAtA, matAtB, matX, cv::DECOMP_QR);
 
           if (iterCount == 0) { // initialize
@@ -903,10 +904,11 @@ int main(int argc, char** argv)
             || std::isnan(matX.at<float>(2, 0))
             || std::isnan(matX.at<float>(3, 0))
             || std::isnan(matX.at<float>(4, 0))
-            || std::isnan(matX.at<float>(5, 0)))
-          {
+            || std::isnan(matX.at<float>(5, 0))) {
+
             ROS_INFO("[USER WARN]laser Odometry: NaN found in var \"matX\""
                      "this L-M optimization step is going to be ignored");
+            continue;
           } else{
             // ROS_INFO("iter: %d, Updating", iterCount);
             transform[0] += matX.at<float>(0, 0);
