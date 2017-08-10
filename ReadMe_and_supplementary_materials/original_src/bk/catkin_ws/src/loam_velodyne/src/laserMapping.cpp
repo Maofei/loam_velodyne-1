@@ -30,12 +30,12 @@ int laserCloudSurroundInd[125];
 
 pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudCornerLast(new pcl::PointCloud<pcl::PointXYZI>());
 pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudSurfLast(new pcl::PointCloud<pcl::PointXYZI>());
-
-pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudCornerStack(new pcl::PointCloud<pcl::PointXYZI>());
-pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudSurfStack(new pcl::PointCloud<pcl::PointXYZI>());
-
+                                    // laserCloudCornerLast after pointAssociateToMap
 pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudCornerStack2(new pcl::PointCloud<pcl::PointXYZI>());
 pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudSurfStack2(new pcl::PointCloud<pcl::PointXYZI>());
+                                    // laserCloudCornerStack2 after pointAssociateTobeMapped and downsampled
+pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudCornerStack(new pcl::PointCloud<pcl::PointXYZI>());
+pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudSurfStack(new pcl::PointCloud<pcl::PointXYZI>());
 
 pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudOri(new pcl::PointCloud<pcl::PointXYZI>());
 //pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudSel(new pcl::PointCloud<pcl::PointXYZI>());
@@ -53,7 +53,7 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudFullRes(new pcl::PointCloud<pcl::
 
 pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudCornerArray[laserCloudNum];
 pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudSurfArray[laserCloudNum];
-
+                                     // downsampled container of laserCloudCornerArray
 pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudCornerArray2[laserCloudNum];
 pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudSurfArray2[laserCloudNum];
 
@@ -68,6 +68,7 @@ float transformBefMapped[6] = {0};// final relative transform (at k+1) from new 
                                   // initialized by coarse transform for laser odom (transformSum)
 
 float transformTobeMapped[6] = {0};// coarse transform for laser odom (global)
+                                   // from new scan to map coordinate
 float transformAftMapped[6] = {0};// final global transform from new scan to map, 
                                   // initialized by coarse transform for laser odom (transformTobeMapped)
 
@@ -82,11 +83,11 @@ float imuPitch[imuQueLength] = {0};
 // output: transformTobeMapped,transformIncre
 void transformAssociateToMap()
 {
-  float x1 = cos(transformSum[1]) * (transformBefMapped[3] - transformSum[3])
-           - sin(transformSum[1]) * (transformBefMapped[5] - transformSum[5]);
+  float x1 = cos(transformSum[1]) * (transformBefMapped[3] - transformSum[3]) -
+             sin(transformSum[1]) * (transformBefMapped[5] - transformSum[5]);
   float y1 = transformBefMapped[4] - transformSum[4];
-  float z1 = sin(transformSum[1]) * (transformBefMapped[3] - transformSum[3])
-           + cos(transformSum[1]) * (transformBefMapped[5] - transformSum[5]);
+  float z1 = sin(transformSum[1]) * (transformBefMapped[3] - transformSum[3]) +
+             cos(transformSum[1]) * (transformBefMapped[5] - transformSum[5]);
 
   float x2 = x1;
   float y2 = cos(transformSum[0]) * y1 + sin(transformSum[0]) * z1;
@@ -187,23 +188,23 @@ void transformUpdate()
       imuRollLast = imuRoll[imuPointerFront];
       imuPitchLast = imuPitch[imuPointerFront];
     } else {
+      // interpolate
       int imuPointerBack = (imuPointerFront + imuQueLength - 1) % imuQueLength;
-      float ratioFront = (timeLaserOdometry + scanPeriod - imuTime[imuPointerBack])
-                       / (imuTime[imuPointerFront] - imuTime[imuPointerBack]);
-      float ratioBack = (imuTime[imuPointerFront] - timeLaserOdometry - scanPeriod)
-                      / (imuTime[imuPointerFront] - imuTime[imuPointerBack]);
+      float ratioFront = (timeLaserOdometry + scanPeriod - imuTime[imuPointerBack]) /
+                         (imuTime[imuPointerFront] - imuTime[imuPointerBack]);
+      float ratioBack = (imuTime[imuPointerFront] - timeLaserOdometry - scanPeriod) /
+                        (imuTime[imuPointerFront] - imuTime[imuPointerBack]);
 
       imuRollLast = imuRoll[imuPointerFront] * ratioFront + imuRoll[imuPointerBack] * ratioBack;
       imuPitchLast = imuPitch[imuPointerFront] * ratioFront + imuPitch[imuPointerBack] * ratioBack;
     }
 
+    // how much imu is believed than odom
+    // yaw is not taken into consideration ?
     transformTobeMapped[0] = 0.998 * transformTobeMapped[0] + 0.002 * imuPitchLast;
     transformTobeMapped[2] = 0.998 * transformTobeMapped[2] + 0.002 * imuRollLast;
   }
-
-  //transformTobeMapped[0] = 0.998 * transformTobeMapped[0] + 0.002 * transformSum[0];
-  //transformTobeMapped[2] = 0.998 * transformTobeMapped[2] + 0.002 * transformSum[2];
-
+  // initialize transformBefMapped and transformAftMapped
   for (int i = 0; i < 6; i++) {
     transformBefMapped[i] = transformSum[i];
     transformAftMapped[i] = transformTobeMapped[i];
@@ -216,35 +217,37 @@ void transformUpdate()
 // output: po
 void pointAssociateToMap(pcl::PointXYZI *pi, pcl::PointXYZI *po)
 {
-  float x1 = cos(transformTobeMapped[2]) * pi->x
-           - sin(transformTobeMapped[2]) * pi->y;
-  float y1 = sin(transformTobeMapped[2]) * pi->x
-           + cos(transformTobeMapped[2]) * pi->y;
+  float x1 = cos(transformTobeMapped[2]) * pi->x -
+             sin(transformTobeMapped[2]) * pi->y;
+  float y1 = sin(transformTobeMapped[2]) * pi->x +
+             cos(transformTobeMapped[2]) * pi->y;
   float z1 = pi->z;
 
   float x2 = x1;
   float y2 = cos(transformTobeMapped[0]) * y1 - sin(transformTobeMapped[0]) * z1;
   float z2 = sin(transformTobeMapped[0]) * y1 + cos(transformTobeMapped[0]) * z1;
 
-  po->x = cos(transformTobeMapped[1]) * x2 + sin(transformTobeMapped[1]) * z2
-        + transformTobeMapped[3];
+  po->x = cos(transformTobeMapped[1]) * x2 + 
+          sin(transformTobeMapped[1]) * z2 +
+          transformTobeMapped[3];
   po->y = y2 + transformTobeMapped[4];
-  po->z = -sin(transformTobeMapped[1]) * x2 + cos(transformTobeMapped[1]) * z2
-        + transformTobeMapped[5];
+  po->z = -sin(transformTobeMapped[1]) * x2 + 
+          cos(transformTobeMapped[1]) * z2 +
+          transformTobeMapped[5];
   po->intensity = pi->intensity;
 }
 
 //TODO
-// ??? this function transform point pi by Matrix: transformTobeMapped to po ???
+// this function transform point pi by Matrix: transformTobeMapped to po ???
 // input:  pi,transformTobeMapped
 // output: po
 void pointAssociateTobeMapped(pcl::PointXYZI *pi, pcl::PointXYZI *po)
 {
-  float x1 = cos(transformTobeMapped[1]) * (pi->x - transformTobeMapped[3])
-           - sin(transformTobeMapped[1]) * (pi->z - transformTobeMapped[5]);
+  float x1 = cos(transformTobeMapped[1]) * (pi->x - transformTobeMapped[3]) -
+             sin(transformTobeMapped[1]) * (pi->z - transformTobeMapped[5]);
   float y1 = pi->y - transformTobeMapped[4];
-  float z1 = sin(transformTobeMapped[1]) * (pi->x - transformTobeMapped[3])
-           + cos(transformTobeMapped[1]) * (pi->z - transformTobeMapped[5]);
+  float z1 = sin(transformTobeMapped[1]) * (pi->x - transformTobeMapped[3]) +
+             cos(transformTobeMapped[1]) * (pi->z - transformTobeMapped[5]);
 
   float x2 = x1;
   float y2 = cos(transformTobeMapped[0]) * y1 + sin(transformTobeMapped[0]) * z1;
@@ -288,6 +291,7 @@ void laserCloudFullResHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloud
   newLaserCloudFullRes = true;
 }
 
+// save "/laser_odom_to_init" from laserOdometry to transformSum[6]
 void laserOdometryHandler(const nav_msgs::Odometry::ConstPtr& laserOdometry)
 {
   timeLaserOdometry = laserOdometry->header.stamp.toSec();
@@ -307,6 +311,7 @@ void laserOdometryHandler(const nav_msgs::Odometry::ConstPtr& laserOdometry)
   newLaserOdometry = true;
 }
 
+// save raw "/imu/data" to imuTime imuRoll imuPitch
 void imuHandler(const sensor_msgs::Imu::ConstPtr& imuIn)
 {
   double roll, pitch, yaw;
@@ -367,7 +372,7 @@ int main(int argc, char** argv)
   std::vector<int> pointSearchInd;
   std::vector<float> pointSearchSqDis;
 
-  pcl::PointXYZI pointOri, pointSel, pointProj, coeff;
+  pcl::PointXYZI pointOri, pointSel, /*pointProj,*/ coeff;
 
   cv::Mat matA0(5, 3, CV_32F, cv::Scalar::all(0));
   cv::Mat matB0(5, 1, CV_32F, cv::Scalar::all(-1));
@@ -661,13 +666,13 @@ int main(int argc, char** argv)
                       float cornerY = centerY + 25.0 * jj;
                       float cornerZ = centerZ + 25.0 * kk;
 
-                      float squaredSide1 = pow(transformTobeMapped[3] - cornerX, 2) +
-                                           pow(transformTobeMapped[4] - cornerY, 2) +
-                                           pow(transformTobeMapped[5] - cornerZ, 2);
+                      float squaredSide1 = sqrDis(transformTobeMapped[3] - cornerX,
+                                                  transformTobeMapped[4] - cornerY,
+                                                  transformTobeMapped[5] - cornerZ);
 
-                      float squaredSide2 = pow(pointOnYAxis.x - cornerX, 2) +
-                                           pow(pointOnYAxis.y - cornerY, 2) +
-                                           pow(pointOnYAxis.z - cornerZ, 2);
+                      float squaredSide2 = sqrDis(pointOnYAxis.x - cornerX,
+                                                  pointOnYAxis.y - cornerY,
+                                                  pointOnYAxis.z - cornerZ);
 
                       float check1 = 100.0 + squaredSide1 - squaredSide2 -
                                      10.0 * sqrt(3.0) * sqrt(squaredSide1);
@@ -700,7 +705,7 @@ int main(int argc, char** argv)
         laserCloudSurfFromMap->clear();
         for (int i = 0; i < laserCloudValidNum; i++) {
           *laserCloudCornerFromMap += *laserCloudCornerArray[laserCloudValidInd[i]];
-          *laserCloudSurfFromMap += *laserCloudSurfArray[laserCloudValidInd[i]];
+          *laserCloudSurfFromMap   += *laserCloudSurfArray[laserCloudValidInd[i]];
         }
         int laserCloudCornerFromMapNum = laserCloudCornerFromMap->points.size();
         int laserCloudSurfFromMapNum = laserCloudSurfFromMap->points.size();
@@ -709,16 +714,18 @@ int main(int argc, char** argv)
         // laserCloudCornerStack2 <= laserCloudCornerLast after pointAssociateToMap
         int laserCloudCornerStackNum2 = laserCloudCornerStack2->points.size();
         for (int i = 0; i < laserCloudCornerStackNum2; i++) {
-          pointAssociateTobeMapped(&laserCloudCornerStack2->points[i], &laserCloudCornerStack2->points[i]);
+          pointAssociateTobeMapped(&laserCloudCornerStack2->points[i],
+                                   &laserCloudCornerStack2->points[i]);
         }
 
         // laserCloudSurfStack2 <= laserCloudSurfLast after pointAssociateToMap
         int laserCloudSurfStackNum2 = laserCloudSurfStack2->points.size();
         for (int i = 0; i < laserCloudSurfStackNum2; i++) {
-          pointAssociateTobeMapped(&laserCloudSurfStack2->points[i], &laserCloudSurfStack2->points[i]);
+          pointAssociateTobeMapped(&laserCloudSurfStack2->points[i],
+                                   &laserCloudSurfStack2->points[i]);
         }
 
-        // downsampling feature points from the new scan using voxel grid
+        // downsampling feature points from the new scan using VoxelGrid
         // save downsampled points in laserCloudCornerStack and laserCloudSurfStack
         laserCloudCornerStack->clear();
         downSizeFilterCorner.setInputCloud(laserCloudCornerStack2);
@@ -733,13 +740,12 @@ int main(int argc, char** argv)
         laserCloudCornerStack2->clear();
         laserCloudSurfStack2->clear();
 
-        // if there are enough feature points which are in laser FOV
+        // if there are enough feature points which are Valid(in laser FOV)
         if (laserCloudCornerFromMapNum > 10 && laserCloudSurfFromMapNum > 100) {
           // kdtree of feature points from map
           kdtreeCornerFromMap->setInputCloud(laserCloudCornerFromMap);
           kdtreeSurfFromMap->setInputCloud(laserCloudSurfFromMap);
 
-          // maximum maxIterNumMapping Levenberg-Marquart optimization iterations
           for (int iterCount = 0; iterCount < maxIterNumMapping; iterCount++) {
             laserCloudOri->clear();
             //laserCloudSel->clear();
@@ -784,7 +790,7 @@ int main(int argc, char** argv)
                 }
                 a11 /= 5; a12 /= 5; a13 /= 5;
                 a22 /= 5; a23 /= 5; a33 /= 5;
-                // symetric matrix
+                // symetric covariance matrix
                 matA1.at<float>(0, 0) = a11;
                 matA1.at<float>(0, 1) = a12;
                 matA1.at<float>(0, 2) = a13;
@@ -797,9 +803,8 @@ int main(int argc, char** argv)
 
                 // matD1 is the eigenvalues of matA1
                 // matV1 is the eigenvectors of matA1
-                // ???
                 cv::eigen(matA1, matD1, matV1);
-
+                // distribute on an edge line
                 if (matD1.at<float>(0, 0) > 3 * matD1.at<float>(0, 1)) {
 
                   float x0 = pointSel.x;
@@ -814,31 +819,28 @@ int main(int argc, char** argv)
                   float y2 = cy - 0.1 * matV1.at<float>(0, 1);
                   float z2 = cz - 0.1 * matV1.at<float>(0, 2);
 
-                  float a012 = sqrt(((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
-                             * ((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
-                             + ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
-                             * ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
-                             + ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))
-                             * ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1)));
+                  float a012 = length3d((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1),
+                                        (x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1),
+                                        (y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1));
 
                   float l12 = length3d(x1 - x2, y1 - y2, z1 - z2);
 
                   float la = ((y1 - y2)*((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1)) + 
-                             (z1 - z2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))) / a012 / l12;
+                              (z1 - z2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))) / a012 / l12;
 
                   float lb = -((x1 - x2)*((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1)) - 
-                             (z1 - z2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
+                               (z1 - z2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
 
                   float lc = -((x1 - x2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1)) + 
-                             (y1 - y2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
+                               (y1 - y2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
 
                   float ld2 = a012 / l12;
-
+                  /*
                   pointProj = pointSel;
                   pointProj.x -= la * ld2;
                   pointProj.y -= lb * ld2;
                   pointProj.z -= lc * ld2;
-
+                  */
                   float s = 1 - 0.9 * fabs(ld2);
 
                   coeff.x = s * la;
@@ -846,7 +848,7 @@ int main(int argc, char** argv)
                   coeff.z = s * lc;
                   coeff.intensity = s * ld2;
 
-                  if (s > 0.1) {
+                  if (s > 0.1) {  // why not && ld2 != 0 ?
                     laserCloudOri->push_back(pointOri);
                     //laserCloudSel->push_back(pointSel);
                     //laserCloudProj->push_back(pointProj);
@@ -873,7 +875,7 @@ int main(int argc, char** argv)
                   matA0.at<float>(j, 1) = laserCloudSurfFromMap->points[pointSearchInd[j]].y;
                   matA0.at<float>(j, 2) = laserCloudSurfFromMap->points[pointSearchInd[j]].z;
                 }
-                // matB0 is all -1, solve matX0
+                // matB0 is all -1, solve plane
                 cv::solve(matA0, matB0, matX0, cv::DECOMP_QR);
 
                 float pa = matX0.at<float>(0, 0);
@@ -881,7 +883,7 @@ int main(int argc, char** argv)
                 float pc = matX0.at<float>(2, 0);
                 float pd = 1;
 
-                float ps = sqrt(pa * pa + pb * pb + pc * pc);
+                float ps = length3d(pa, pb, pc);
                 pa /= ps;
                 pb /= ps;
                 pc /= ps;
@@ -899,13 +901,14 @@ int main(int argc, char** argv)
                 }
 
                 if (planeValid) {
+                  // distance from pointSel to plane
                   float pd2 = pa * pointSel.x + pb * pointSel.y + pc * pointSel.z + pd;
-
+                  /*
                   pointProj = pointSel;
                   pointProj.x -= pa * pd2;
                   pointProj.y -= pb * pd2;
                   pointProj.z -= pc * pd2;
-
+                  */
                   float s = 1 - 0.9 * fabs(pd2) / sqrt(length3d(pointSel.x,
                                                                 pointSel.y, 
                                                                 pointSel.z));
@@ -932,12 +935,15 @@ int main(int argc, char** argv)
 
             float srx = sin(transformTobeMapped[0]);
             float crx = cos(transformTobeMapped[0]);
+
             float sry = sin(transformTobeMapped[1]);
             float cry = cos(transformTobeMapped[1]);
+
             float srz = sin(transformTobeMapped[2]);
             float crz = cos(transformTobeMapped[2]);
 
             int laserCloudSelNum = laserCloudOri->points.size();
+            // more than Odometry
             if (laserCloudSelNum < 50) {
               continue;
             }
@@ -953,19 +959,30 @@ int main(int argc, char** argv)
             for (int i = 0; i < laserCloudSelNum; i++) {
               pointOri = laserCloudOri->points[i];
               coeff = coeffSel->points[i];
+              // jacobian
+              float arx = (crx*sry*srz*pointOri.x + 
+                           crx*crz*sry*pointOri.y - 
+                           srx*sry*pointOri.z) * coeff.x + 
+                          (-srx*srz*pointOri.x - 
+                           crz*srx*pointOri.y - 
+                           crx*pointOri.z) * coeff.y +
+                          (crx*cry*srz*pointOri.x + 
+                           crx*cry*crz*pointOri.y - 
+                           cry*srx*pointOri.z) * coeff.z;
 
-              float arx = (crx*sry*srz*pointOri.x + crx*crz*sry*pointOri.y - srx*sry*pointOri.z) * coeff.x
-                        + (-srx*srz*pointOri.x - crz*srx*pointOri.y - crx*pointOri.z) * coeff.y
-                        + (crx*cry*srz*pointOri.x + crx*cry*crz*pointOri.y - cry*srx*pointOri.z) * coeff.z;
+              float ary = ((cry*srx*srz - crz*sry)*pointOri.x + 
+                           (sry*srz + cry*crz*srx)*pointOri.y + 
+                           crx*cry*pointOri.z) * coeff.x + 
+                          ((-cry*crz - srx*sry*srz)*pointOri.x + 
+                           (cry*srz - crz*srx*sry)*pointOri.y - 
+                           crx*sry*pointOri.z) * coeff.z;
 
-              float ary = ((cry*srx*srz - crz*sry)*pointOri.x
-                        + (sry*srz + cry*crz*srx)*pointOri.y + crx*cry*pointOri.z) * coeff.x
-                        + ((-cry*crz - srx*sry*srz)*pointOri.x
-                        + (cry*srz - crz*srx*sry)*pointOri.y - crx*sry*pointOri.z) * coeff.z;
-
-              float arz = ((crz*srx*sry - cry*srz)*pointOri.x + (-cry*crz-srx*sry*srz)*pointOri.y)*coeff.x
-                        + (crx*crz*pointOri.x - crx*srz*pointOri.y) * coeff.y
-                        + ((sry*srz + cry*crz*srx)*pointOri.x + (crz*sry-cry*srx*srz)*pointOri.y)*coeff.z;
+              float arz = ((crz*srx*sry - cry*srz)*pointOri.x + 
+                           (-cry*crz-srx*sry*srz)*pointOri.y)*coeff.x + 
+                          (crx*crz*pointOri.x - 
+                           crx*srz*pointOri.y) * coeff.y + 
+                          ((sry*srz + cry*crz*srx)*pointOri.x + 
+                           (crz*sry-cry*srx*srz)*pointOri.y)*coeff.z;
 
               matA.at<float>(i, 0) = arx;
               matA.at<float>(i, 1) = ary;
@@ -973,6 +990,7 @@ int main(int argc, char** argv)
               matA.at<float>(i, 3) = coeff.x;
               matA.at<float>(i, 4) = coeff.y;
               matA.at<float>(i, 5) = coeff.z;
+
               matB.at<float>(i, 0) = -coeff.intensity;
             }
             cv::transpose(matA, matAt);
@@ -1032,9 +1050,11 @@ int main(int argc, char** argv)
               break;
             }
 
-            //ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", iterCount, deltaR, deltaT);
+            // ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", iterCount, deltaR, deltaT);
           }// max 25 times L-M optimization ends here.
 
+          // integrate IMU results
+          // initialize transformBefMapped and transformAftMapped
           transformUpdate();
         }
 
@@ -1081,9 +1101,8 @@ int main(int argc, char** argv)
             laserCloudSurfArray[cubeInd]->push_back(pointSel);
           }
         }
+
         // downsampling feature points in FOV 
-        // swap laserCloudCornerArray and laserCloudCornerArray2
-        // swap laserCloudSurfArray and laserCloudSurfArray2
         for (int i = 0; i < laserCloudValidNum; i++) {
           int ind = laserCloudValidInd[i];
 
@@ -1137,7 +1156,8 @@ int main(int argc, char** argv)
         // transforming full resolution laser pointcloud to map and publishing them
         int laserCloudFullResNum = laserCloudFullRes->points.size();
         for (int i = 0; i < laserCloudFullResNum; i++) {
-          pointAssociateToMap(&laserCloudFullRes->points[i], &laserCloudFullRes->points[i]);
+          pointAssociateToMap(&laserCloudFullRes->points[i], 
+                              &laserCloudFullRes->points[i]);
         }
         sensor_msgs::PointCloud2 laserCloudFullResMsg;
         pcl::toROSMsg(*laserCloudFullRes, laserCloudFullResMsg);

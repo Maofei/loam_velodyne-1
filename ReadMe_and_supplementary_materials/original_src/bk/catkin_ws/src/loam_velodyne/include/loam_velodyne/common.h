@@ -57,7 +57,16 @@ inline float sqrDis(pcl::PointXYZI p1, pcl::PointXYZI p2) {
 	       pow(p1.y - p2.y, 2) +
 	       pow(p1.z - p2.z, 2);
 }
-
+inline float sqrDis(float x, float y, float z) {
+	return pow(x, 2) +
+	       pow(y, 2) +
+	       pow(z, 2);
+}
+inline double sqrDis(double x, double y, double z) {
+	return pow(x, 2) +
+	       pow(y, 2) +
+	       pow(z, 2);
+}
 
 // Ref: http://tutorial.math.lamar.edu/Classes/CalcIII/EqnsOfPlanes.aspx
 inline void solvePlane(const pcl::PointXYZI& tripod1,

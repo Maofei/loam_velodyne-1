@@ -733,7 +733,9 @@ int main(int argc, char** argv)
               // Bisquare weights
               float s = 1.0;
               if (iterCount >= 5) {
-                s = 1 - 1.8 * fabs(pd2) / sqrt(length3d(pointSel.x, pointSel.y, pointSel.z));
+                s = 1 - 1.8 * fabs(pd2) / sqrt(length3d(pointSel.x,
+                                                        pointSel.y, 
+                                                        pointSel.z));
               }
 
               coeff.x = s * pa;
