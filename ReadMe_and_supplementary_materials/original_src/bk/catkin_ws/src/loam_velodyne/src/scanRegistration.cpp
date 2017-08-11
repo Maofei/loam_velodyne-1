@@ -34,9 +34,9 @@ float imuRollStart = 0, imuPitchStart = 0, imuYawStart = 0;
 float imuRollCur = 0, imuPitchCur = 0, imuYawCur = 0;
 
 float imuVeloXStart = 0, imuVeloYStart = 0, imuVeloZStart = 0;
-float imuShiftXStart = 0, imuShiftYStart = 0, imuShiftZStart = 0;
-
 float imuVeloXCur = 0, imuVeloYCur = 0, imuVeloZCur = 0;
+
+float imuShiftXStart = 0, imuShiftYStart = 0, imuShiftZStart = 0;
 float imuShiftXCur = 0, imuShiftYCur = 0, imuShiftZCur = 0;
 
 float imuShiftFromStartXCur = 0, imuShiftFromStartYCur = 0, imuShiftFromStartZCur = 0;
@@ -243,13 +243,12 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
 
   for (int i = 0; i < cloudSize; i++) {
     // ?
-    // use imu data to register original scanned points into lidar coodinates in
-    // different scan lines
     // ROS convention: x = forward, y = left, z = up
     point.x = laserCloudIn->points[i].y;
     point.y = laserCloudIn->points[i].z;
     point.z = laserCloudIn->points[i].x;
 
+    // get scanID
     // angle of origin z from origin x-y plane
     double angle = rad2deg(atan(point.y / length2d(point.x, point.z)));
     // different from lidar!
@@ -302,7 +301,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
     }
 
     float relTime = (ori - startOri) / (endOri - startOri);
-    // save scanId and time in intensity, TODO(qmf): add XYZIRX type
+    // save scanId and time in intensity, TODO(qmf): add XYZIRT type
     point.intensity = scanID + scanPeriod * relTime;
 
     if (imuPointerLast >= 0) {
@@ -380,8 +379,8 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
         imuShiftYStart = imuShiftYCur;
         imuShiftZStart = imuShiftZCur;
       } else {
-        // imuShift to start time coordinate
         // TODO(qmf): GPS can be integrated here
+        // imuShift to start time coordinate
         ShiftToStartIMU(pointTime);
         // imuVelo to start time coordinate
         VeloToStartIMU();
@@ -401,7 +400,6 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
 
   int scanCount = -1;
   for (int i = 5; i < cloudSize - 5; i++) {
-    //ROS_INFO("i = %d, cloundSize = %d", i, cloudSize);
     float diffX = - 11 * laserCloud->points[i].x;
     float diffY = - 11 * laserCloud->points[i].y;
     float diffZ = - 11 * laserCloud->points[i].z;
@@ -410,7 +408,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
         diffY += laserCloud->points[i + neighor].y;
         diffZ += laserCloud->points[i + neighor].z;
     }
-    cloudCurvature[i] = pow(diffX, 2) + pow(diffY, 2) + pow(diffZ, 2);
+    cloudCurvature[i] = sqrDis(diffX, diffY, diffZ);
     cloudSortInd[i] = i;
     cloudNeighborPicked[i] = 0;
     cloudLabel[i] = 0;
@@ -433,7 +431,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
     float diffY = laserCloud->points[i + 1].y - laserCloud->points[i].y;
     float diffZ = laserCloud->points[i + 1].z - laserCloud->points[i].z;
 
-    float diff = pow(diffX, 2) + pow(diffY, 2) + pow(diffZ, 2);
+    float diff = sqrDis(diffX, diffY, diffZ);
 
     if (diff > 0.1) {
 
@@ -479,11 +477,11 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
     float diffX2 = laserCloud->points[i].x - laserCloud->points[i - 1].x;
     float diffY2 = laserCloud->points[i].y - laserCloud->points[i - 1].y;
     float diffZ2 = laserCloud->points[i].z - laserCloud->points[i - 1].z;
-    float diff2 = pow(diffX2, 2) + pow(diffY2, 2) + pow(diffZ2, 2);
+    float diff2 = sqrDis(diffX2, diffY2, diffZ2);
 
-    float dis = pow(laserCloud->points[i].x, 2) +
-                pow(laserCloud->points[i].y, 2) +
-                pow(laserCloud->points[i].z, 2);
+    float dis = sqrDis(laserCloud->points[i].x,
+                       laserCloud->points[i].y,
+                       laserCloud->points[i].z);
 
     if (diff > 0.0002 * dis && diff2 > 0.0002 * dis) {
       cloudNeighborPicked[i] = 1;
@@ -531,13 +529,13 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
 
           cloudNeighborPicked[ind] = 1;
           for (int l = 1; l <= 5; l++) {
-            float diffX = laserCloud->points[ind + l].x
-                        - laserCloud->points[ind + l - 1].x;
-            float diffY = laserCloud->points[ind + l].y
-                        - laserCloud->points[ind + l - 1].y;
-            float diffZ = laserCloud->points[ind + l].z
-                        - laserCloud->points[ind + l - 1].z;
-            if (pow(diffX, 2) + pow(diffY, 2) + pow(diffZ, 2) > 0.05) {// ?
+            float diffX = laserCloud->points[ind + l].x -
+                          laserCloud->points[ind + l - 1].x;
+            float diffY = laserCloud->points[ind + l].y -
+                          laserCloud->points[ind + l - 1].y;
+            float diffZ = laserCloud->points[ind + l].z -
+                          laserCloud->points[ind + l - 1].z;
+            if (sqrDis(diffX, diffY, diffZ) > 0.05) {// ?
               break;
             }
             cloudNeighborPicked[ind + l] = 1;
@@ -549,7 +547,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
                         - laserCloud->points[ind + l + 1].y;
             float diffZ = laserCloud->points[ind + l].z
                         - laserCloud->points[ind + l + 1].z;
-            if (pow(diffX, 2) + pow(diffY, 2) + pow(diffZ, 2) > 0.05) {
+            if (sqrDis(diffX, diffY, diffZ) > 0.05) {
               break;
             }
             cloudNeighborPicked[ind + l] = 1;
@@ -580,7 +578,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
                           laserCloud->points[ind + l - 1].y;
             float diffZ = laserCloud->points[ind + l].z -
                           laserCloud->points[ind + l - 1].z;
-            if (pow(diffX, 2) + pow(diffY, 2) + pow(diffZ, 2) > 0.05) {
+            if (sqrDis(diffX, diffY, diffZ) > 0.05) {
               break;
             }
             cloudNeighborPicked[ind + l] = 1;
@@ -592,7 +590,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
                         - laserCloud->points[ind + l + 1].y;
             float diffZ = laserCloud->points[ind + l].z
                         - laserCloud->points[ind + l + 1].z;
-            if (pow(diffX, 2) + pow(diffY, 2) + pow(diffZ, 2) > 0.05) {
+            if (sqrDis(diffX, diffY, diffZ) > 0.05) {
               break;
             }
             cloudNeighborPicked[ind + l] = 1;
@@ -687,9 +685,10 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
   }
 }
 
+// ImuMsg to fill imuTime, imu{Roll, Pitch, Yaw}, imu{AccXYZ}
 void imuHandler(const sensor_msgs::Imu::ConstPtr& imuIn)
 {
-  //ROS_INFO("imu recieved!\n");
+  // ROS_INFO("imu recieved!\n");
   double roll, pitch, yaw;
   tf::Quaternion orientation;
   tf::quaternionMsgToTF(imuIn->orientation, orientation);
