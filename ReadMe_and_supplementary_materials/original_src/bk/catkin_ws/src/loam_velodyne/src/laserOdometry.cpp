@@ -26,6 +26,7 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr surfPointsLessFlat(new pcl::PointCloud<pcl:
 
 pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudCornerLast(new pcl::PointCloud<pcl::PointXYZI>());
 pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudSurfLast(new pcl::PointCloud<pcl::PointXYZI>());
+
 // stores the original coordinates (not transformed to start time point) of feature point in current cloud
 pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudOri(new pcl::PointCloud<pcl::PointXYZI>());
 
@@ -347,7 +348,8 @@ void imuTransHandler(const sensor_msgs::PointCloud2ConstPtr& imuTransMsg)
   imuYawStart = imuTrans->points[0].y;
   imuRollStart = imuTrans->points[0].z;
 
-  imuPitchLast = imuTrans->points[1].x;
+  // It's Cur from scanRegistration
+  imuPitchLast = imuTrans->points[1].x; 
   imuYawLast = imuTrans->points[1].y;
   imuRollLast = imuTrans->points[1].z;
 
@@ -449,15 +451,14 @@ int main(int argc, char** argv)
       newImuTrans = false;
 
       if (!systemInited) {
-        // swap cornerPoints**Less**Sharp and laserCloudCornerLast
-        // initialize the "last clouds" & kdtrees, publish the first clouds,
-        // initialize laserCloudCornerLast
+        // initialize the "last clouds" & kdtrees, publish the first clouds
+
+        // initialize laserCloudCornerLast with cornerPointsLessSharp
         pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudTemp = cornerPointsLessSharp;
         cornerPointsLessSharp = laserCloudCornerLast;
         laserCloudCornerLast = laserCloudTemp;
 
-        // swap surfPoints**Less**Flat and laserCloudSurfLast
-        // initialize laserCloudSurfLast
+        // initialize laserCloudSurfLast with surfPointsLessFlat
         laserCloudTemp = surfPointsLessFlat;
         surfPointsLessFlat = laserCloudSurfLast;
         laserCloudSurfLast = laserCloudTemp;
@@ -490,7 +491,7 @@ int main(int argc, char** argv)
         continue;
       }
 
-      // minus the predicted motion
+      // minus the predicted motion to move to start
       transform[3] -= imuVeloFromStartX * scanPeriod;
       transform[4] -= imuVeloFromStartY * scanPeriod;
       transform[5] -= imuVeloFromStartZ * scanPeriod;
@@ -501,6 +502,11 @@ int main(int argc, char** argv)
         int cornerPointsSharpNum = cornerPointsSharp->points.size();
         int surfPointsFlatNum = surfPointsFlat->points.size();
 
+        ROS_INFO("cornerPointsSharpNum: %d", cornerPointsSharpNum);
+        ROS_INFO("surfPointsFlatNum   : %d", surfPointsFlatNum);
+        ROS_INFO("laserCloudCornerLast->points.size : %d", laserCloudCornerLast->points.size());
+
+        // Doing iterative optimization
         for (int iterCount = 0; iterCount < maxIterNumOdom; iterCount++) {
           laserCloudOri->clear();
           //pointSearchCornerLast->clear();
@@ -516,8 +522,8 @@ int main(int argc, char** argv)
           for (int i = 0; i < cornerPointsSharpNum; i++) {
             // transform current point to the frame of start time point
             TransformToStart(&cornerPointsSharp->points[i], &pointSel);
-            // locate the nearest point in last corner points to this cornerPointsSharp point every 5 iters
-            if (iterCount % 5 == 0) { // ?
+
+            if (iterCount % 5 == 0) {
               // search the nearest point
               kdtreeCornerLast->nearestKSearch(pointSel, 1, pointSearchInd, pointSearchSqDis);
               int closestPointInd = -1, minPointInd2 = -1;
