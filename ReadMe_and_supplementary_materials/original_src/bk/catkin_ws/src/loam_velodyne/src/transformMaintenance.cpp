@@ -12,6 +12,8 @@ tf::TransformBroadcaster *tfBroadcaster2Pointer = NULL;
 nav_msgs::Odometry laserOdometry2;
 tf::StampedTransform laserOdometryTrans2;
 
+// input: transformBefMapped,transformSum,transformAftMapped
+// output: transformTobeMapped,transformIncre
 void transformAssociateToMap()
 {
   float x1 = cos(transformSum[1]) * (transformBefMapped[3] - transformSum[3])
@@ -66,7 +68,8 @@ void transformAssociateToMap()
                - (sbcy*sbcz + cbcy*cbcz*sbcx)*(calx*saly*(cbly*sblz - cblz*sblx*sbly)
                - calx*caly*(sbly*sblz + cbly*cblz*sblx) + cblx*cblz*salx)
                + cbcx*cbcy*(salx*sblx + calx*caly*cblx*cbly + calx*cblx*saly*sbly);
-  transformMapped[1] = atan2(srycrx / cos(transformMapped[0]), crycrx / cos(transformMapped[0]));
+  transformMapped[1] = atan2(srycrx / cos(transformMapped[0]), 
+                             crycrx / cos(transformMapped[0]));
 
   float srzcrx = sbcx*(cblx*cbly*(calz*saly - caly*salx*salz)
                - cblx*sbly*(caly*calz + salx*saly*salz) + calx*salz*sblx)
@@ -82,7 +85,8 @@ void transformAssociateToMap()
                + calx*calz*cblx*cblz) - cbcx*sbcz*((saly*salz + caly*calz*salx)*(cblz*sbly
                - cbly*sblx*sblz) + (caly*salz - calz*salx*saly)*(cbly*cblz + sblx*sbly*sblz)
                - calx*calz*cblx*sblz);
-  transformMapped[2] = atan2(srzcrx / cos(transformMapped[0]), crzcrx / cos(transformMapped[0]));
+  transformMapped[2] = atan2(srzcrx / cos(transformMapped[0]), 
+                             crzcrx / cos(transformMapped[0]));
 
   x1 = cos(transformMapped[2]) * transformIncre[3] - sin(transformMapped[2]) * transformIncre[4];
   y1 = sin(transformMapped[2]) * transformIncre[3] + cos(transformMapped[2]) * transformIncre[4];
@@ -146,7 +150,8 @@ void laserOdometryHandler(const nav_msgs::Odometry::ConstPtr& laserOdometry)
   tfBroadcaster2Pointer->sendTransform(laserOdometryTrans2);
 }
 
-// this callback function extract relative transform 'transformBefMapped' and 
+// this callback function extract 
+// relative transform 'transformBefMapped' and 
 // global transform 'transformAftMapped' from global refined odometry '/aft_mapped_to_init'
 void odomAftMappedHandler(const nav_msgs::Odometry::ConstPtr& odomAftMapped)
 {
