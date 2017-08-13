@@ -242,8 +242,8 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudInMsg)
   pcl::PointXYZI point;
 
   for (int i = 0; i < cloudSize; i++) {
-    // ?
     // ROS convention: x = forward, y = left, z = up
+    // LOAM convention: x = left, y = up, z = forward
     point.x = laserCloudIn->points[i].y;
     point.y = laserCloudIn->points[i].z;
     point.z = laserCloudIn->points[i].x;

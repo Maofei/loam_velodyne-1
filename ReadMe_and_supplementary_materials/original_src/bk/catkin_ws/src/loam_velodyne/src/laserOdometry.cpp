@@ -523,7 +523,7 @@ int main(int argc, char** argv)
             // transform current point to the frame of start time point
             TransformToStart(&cornerPointsSharp->points[i], &pointSel);
 
-            if (iterCount % 5 == 0) {
+            if (iterCount % 5 == 0) { // scan matching
               // search the nearest point
               kdtreeCornerLast->nearestKSearch(pointSel, 1, pointSearchInd, pointSearchSqDis);
               int closestPointInd = -1, minPointInd2 = -1;
@@ -653,7 +653,7 @@ int main(int argc, char** argv)
           for (int i = 0; i < surfPointsFlatNum; i++) {
             TransformToStart(&surfPointsFlat->points[i], &pointSel);
 
-            if (iterCount % 5 == 0) { // time to find correspondence with planar patches
+            if (iterCount % 5 == 0) { // scan matching
               kdtreeSurfLast->nearestKSearch(pointSel, 1, pointSearchInd, pointSearchSqDis);
 
               int closestPointInd = -1, minPointInd2 = -1;
@@ -774,6 +774,7 @@ int main(int argc, char** argv)
           cv::Mat matAtB(6, 1, CV_32F, cv::Scalar::all(0));
           cv::Mat matX(6, 1, CV_32F, cv::Scalar::all(0));
 
+          ROS_INFO("point num for optimization: %d", pointSelNum);
           for (int i = 0; i < pointSelNum; i++) {
             // the original coordinates (not transformed to start time point) of feature point in current cloud
             pointOri = laserCloudOri->points[i];
@@ -785,10 +786,13 @@ int main(int argc, char** argv)
 
             float srx = sin(s * transform[0]);
             float crx = cos(s * transform[0]);
+
             float sry = sin(s * transform[1]);
             float cry = cos(s * transform[1]);
+
             float srz = sin(s * transform[2]);
             float crz = cos(s * transform[2]);
+
             float tx = s * transform[3];
             float ty = s * transform[4];
             float tz = s * transform[5];
