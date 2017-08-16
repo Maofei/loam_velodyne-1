@@ -504,7 +504,8 @@ int main(int argc, char** argv)
 
         ROS_INFO("cornerPointsSharpNum: %d", cornerPointsSharpNum);
         ROS_INFO("surfPointsFlatNum   : %d", surfPointsFlatNum);
-        ROS_INFO("laserCloudCornerLast->points.size : %d", laserCloudCornerLast->points.size());
+        int laserCloudCornerLastPointNum = laserCloudCornerLast->points.size();
+        ROS_INFO("laserCloudCornerLast->points.size : %d", laserCloudCornerLastPointNum);
 
         // Doing iterative optimization
         for (int iterCount = 0; iterCount < maxIterNumOdom; iterCount++) {
