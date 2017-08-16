@@ -848,6 +848,7 @@ int main(int argc, char** argv)
                   coeff.z = s * lc;
                   coeff.intensity = s * ld2;
 
+                  // reject outliers and 0 errors
                   if (s > 0.1) {  // why not && ld2 != 0 ?
                     laserCloudOri->push_back(pointOri);
                     //laserCloudSel->push_back(pointSel);
@@ -918,6 +919,7 @@ int main(int argc, char** argv)
                   coeff.z = s * pc;
                   coeff.intensity = s * pd2;
 
+                  // reject outliers
                   if (s > 0.1) {
                     laserCloudOri->push_back(pointOri);
                     //laserCloudSel->push_back(pointSel);

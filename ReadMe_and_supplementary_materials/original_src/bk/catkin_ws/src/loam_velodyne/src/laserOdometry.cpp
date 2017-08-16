@@ -623,7 +623,7 @@ int main(int argc, char** argv)
               pointProj.z -= lc * ld2;
               */
 
-              // Bisquare weights
+              // assign weights
               float s = 1.0;
               if (iterCount >= 5) {
                 s = 1 - 1.8 * fabs(ld2); 
@@ -634,8 +634,7 @@ int main(int argc, char** argv)
               coeff.z = s * lc;
               coeff.intensity = s * ld2;
 
-              // apply this correspondence only when
-              // s is not too small and distance is not zero
+              // reject outliers and 0 errors
               if (s > 0.1 && ld2 != 0) {
                 laserCloudOri->push_back(cornerPointsSharp->points[i]);
                 //pointSearchCornerLast->push_back(tripod1);
@@ -739,6 +738,7 @@ int main(int argc, char** argv)
               // Bisquare weights
               float s = 1.0;
               if (iterCount >= 5) {
+                // 1 - Dist(P1,P2)/DistMax
                 s = 1 - 1.8 * fabs(pd2) / sqrt(length3d(pointSel.x,
                                                         pointSel.y, 
                                                         pointSel.z));
@@ -749,9 +749,8 @@ int main(int argc, char** argv)
               coeff.z = s * pc;
               coeff.intensity = s * pd2;
 
-              if (s > 0.1 && pd2 != 0) {// apply this correspondence only when
-                                        // s is not too small and distance is
-                                        // not zero
+              // reject outliers and 0 errors
+              if (s > 0.1 && pd2 != 0) {
                 laserCloudOri->push_back(surfPointsFlat->points[i]);
                 //pointSearchSurfLast->push_back(tripod1);
                 //pointSearchSurfLast->push_back(tripod2);

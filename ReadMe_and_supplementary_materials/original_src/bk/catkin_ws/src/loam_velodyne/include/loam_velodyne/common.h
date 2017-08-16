@@ -99,7 +99,7 @@ inline void solvePlane(const pcl::PointXYZI& tripod1,
     //  std::cout<<"pointSearchSurfInd3[i]: "<<pointSearchSurfInd3[i]<<std::endl;
     //}
 
-    // normal vector of the plane
+    // unit normal vector of the plane
     pa /= ps;
     pb /= ps;
     pc /= ps;
